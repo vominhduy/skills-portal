@@ -1,0 +1,902 @@
+{
+  "project": "FTI-SAL v3.1 - Salary Management System (FTI Salary)",
+  "sprint_number": 1,
+  "sprint_goal": "Thiết lập nền tảng tính lương ZNS (công thức, CTL, import) và đồng bộ IHUB; hoàn thiện luồng phê duyệt bảng lương & công trực - sẵn sàng cho QC testing, UAT và pilot.",
+  "time_box": [
+    "1. Sprint Timeline: From 07/07/2026 To 14/08/2026",
+    "2. Daily Scrum: 15 min/ngay (9:00 AM)",
+    "3. Dev Complete: 29/07/2026",
+    "4. QC Testing Complete: 10/08/2026",
+    "5. UAT: 11/08/2026 - 12/08/2026",
+    "6. Production Deploy: 13/08/2026 (Thu)",
+    "7. Sprint Review: 14/08/2026",
+    "8. Sprint Retrospective: 14/08/2026"
+  ],
+  "epics": [
+    {
+      "epic": "EPIC-0: Init Sprint - Kick-off, Analysis & Setup",
+      "user_stories": [
+        {
+          "us_id": "US_0.1",
+          "module": "Init Sprint",
+          "description": "Kick-off, Sprint Planning, Risk tracking, UAT planning, Sprint Review & Retrospective",
+          "priority": "2-Medium",
+          "complexity": "1-Low",
+          "tasks": [
+            {
+              "pic": "PM",
+              "task_name": "Kick-off & Sprint Planning",
+              "status": "Not Started",
+              "start_date": "07/07/2026",
+              "due_date": "07/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Project Management",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "PM",
+              "task_name": "Risk & Impediment tracking",
+              "status": "Not Started",
+              "start_date": "13/07/2026",
+              "due_date": "13/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Project Management",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "PM",
+              "task_name": "Daily progress monitoring & Reporting",
+              "status": "Not Started",
+              "start_date": "20/07/2026",
+              "due_date": "20/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Project Management",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "PM",
+              "task_name": "UAT Planning & Coordination",
+              "status": "Not Started",
+              "start_date": "27/07/2026",
+              "due_date": "27/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Project Management",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "PM",
+              "task_name": "Sprint Review & Retrospective facilitation",
+              "status": "Not Started",
+              "start_date": "13/08/2026",
+              "due_date": "13/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Project Management",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_0.2",
+          "module": "Requirement & Design",
+          "description": "Phân tích nghiệp vụ, Wireframe, URD tổng hợp (hoàn thành trong W1)",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "BA",
+              "task_name": "Phân tích nghiệp vụ & viết Acceptance Criteria",
+              "status": "Not Started",
+              "start_date": "07/07/2026",
+              "due_date": "07/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "High"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Thiết kế Wireframe/Mockup",
+              "status": "Not Started",
+              "start_date": "08/07/2026",
+              "due_date": "08/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "High"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Viết URD tổng hợp",
+              "status": "Not Started",
+              "start_date": "09/07/2026",
+              "due_date": "10/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "High"
+            }
+          ]
+        },
+        {
+          "us_id": "US_0.3",
+          "module": "Init Sprint - Technical",
+          "description": "Setup môi trường, Review hệ thống, Technical design & DB schema",
+          "priority": "2-Medium",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "TL",
+              "task_name": "Setup môi trường dev/test & CI",
+              "status": "Not Started",
+              "start_date": "07/07/2026",
+              "due_date": "07/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 6,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Review hệ thống hiện tại & Kiến trúc",
+              "status": "Not Started",
+              "start_date": "08/07/2026",
+              "due_date": "08/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Study",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Technical design & DB schema (Oracle)",
+              "status": "Not Started",
+              "start_date": "09/07/2026",
+              "due_date": "10/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "High"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-1: Cấu hình công thức lương ZNS & CTL",
+      "user_stories": [
+        {
+          "us_id": "US_1.1",
+          "module": "Xử lý lương - ZNS Formula",
+          "description": "(1) Cấu hình công thức lương mới cho dịch vụ ZNS",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV1",
+              "task_name": "Cấu hình công thức lương ZNS (Coding)",
+              "status": "Not Started",
+              "start_date": "13/07/2026",
+              "due_date": "14/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Unit Test công thức ZNS",
+              "status": "Not Started",
+              "start_date": "15/07/2026",
+              "due_date": "15/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "High"
+            },
+            {
+              "pic": "QC1",
+              "task_name": "Test công thức lương ZNS",
+              "status": "Not Started",
+              "start_date": "03/08/2026",
+              "due_date": "03/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_1.2",
+          "module": "Xử lý lương - CTL UI",
+          "description": "(2) Tạo giao diện hiển thị chi tiết CTL mới",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV1",
+              "task_name": "Implement UI chi tiết CTL (Coding)",
+              "status": "Not Started",
+              "start_date": "16/07/2026",
+              "due_date": "17/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Unit Test UI CTL",
+              "status": "Not Started",
+              "start_date": "20/07/2026",
+              "due_date": "20/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC1",
+              "task_name": "Test UI hiển thị CTL",
+              "status": "Not Started",
+              "start_date": "04/08/2026",
+              "due_date": "04/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_1.3",
+          "module": "Xử lý lương - CTL Core",
+          "description": "(3) Xử lý logic core lương tính toán tỉ lệ CTL mới",
+          "priority": "3-High",
+          "complexity": "3-High",
+          "tasks": [
+            {
+              "pic": "DEV1",
+              "task_name": "Implement core logic tỉ lệ CTL (Coding)",
+              "status": "Not Started",
+              "start_date": "21/07/2026",
+              "due_date": "22/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Unit Test core CTL",
+              "status": "Not Started",
+              "start_date": "23/07/2026",
+              "due_date": "23/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "High"
+            },
+            {
+              "pic": "QC1",
+              "task_name": "Test logic core CTL",
+              "status": "Not Started",
+              "start_date": "05/08/2026",
+              "due_date": "05/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "High"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-2: Gửi bảng lương phê duyệt",
+      "user_stories": [
+        {
+          "us_id": "US_2.1",
+          "module": "Phiếu duyệt lương",
+          "description": "(4) Bổ sung xử lý Gửi bảng lương phê duyệt",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV1",
+              "task_name": "Implement gửi bảng lương phê duyệt (Coding) - Phần 1",
+              "status": "Not Started",
+              "start_date": "24/07/2026",
+              "due_date": "24/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Implement gửi bảng lương phê duyệt (Coding) - Phần 2",
+              "status": "Not Started",
+              "start_date": "27/07/2026",
+              "due_date": "27/07/2026",
+              "est_effort_hour": 8,
+              "notes": "Tách do task 16h không được span qua T7/CN",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Unit Test gửi bảng lương",
+              "status": "Not Started",
+              "start_date": "28/07/2026",
+              "due_date": "28/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC1",
+              "task_name": "Test luồng phê duyệt bảng lương",
+              "status": "Not Started",
+              "start_date": "06/08/2026",
+              "due_date": "06/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-3: Import dữ liệu ZNS",
+      "user_stories": [
+        {
+          "us_id": "US_3.1",
+          "module": "Import ZNS",
+          "description": "(5) Thêm mới logic xử lý import Giá vốn, Doanh thu ZNS",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV2",
+              "task_name": "Implement logic import Giá vốn/Doanh thu ZNS (Coding)",
+              "status": "Not Started",
+              "start_date": "13/07/2026",
+              "due_date": "14/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV2",
+              "task_name": "Unit Test import ZNS",
+              "status": "Not Started",
+              "start_date": "15/07/2026",
+              "due_date": "15/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Test logic import ZNS",
+              "status": "Not Started",
+              "start_date": "03/08/2026",
+              "due_date": "03/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_3.2",
+          "module": "Import ZNS - UI & Phân quyền",
+          "description": "(6) Thêm mới giao diện import ZNS, phân quyền chức năng",
+          "priority": "3-High",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV2",
+              "task_name": "Implement UI import ZNS & phân quyền (Coding)",
+              "status": "Not Started",
+              "start_date": "16/07/2026",
+              "due_date": "17/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV2",
+              "task_name": "Unit Test UI import ZNS",
+              "status": "Not Started",
+              "start_date": "20/07/2026",
+              "due_date": "20/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Test UI import & phân quyền",
+              "status": "Not Started",
+              "start_date": "04/08/2026",
+              "due_date": "04/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-4: Đồng bộ dữ liệu từ IHUB",
+      "user_stories": [
+        {
+          "us_id": "US_4.1",
+          "module": "IHUB Sync - Oracle",
+          "description": "(7) Tạo table oracle chứa dữ liệu đồng bộ",
+          "priority": "2-Medium",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "TL",
+              "task_name": "Tạo table Oracle & schema (Coding)",
+              "status": "Not Started",
+              "start_date": "13/07/2026",
+              "due_date": "13/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Unit Test table/sync",
+              "status": "Not Started",
+              "start_date": "14/07/2026",
+              "due_date": "14/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Code Review table Oracle & sync",
+              "status": "Not Started",
+              "start_date": "30/07/2026",
+              "due_date": "30/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Review",
+              "task_process": "Review",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_4.2",
+          "module": "IHUB Sync - Flow",
+          "description": "(8) Tạo luồng xử lý đồng bộ dữ liệu từ IHUB",
+          "priority": "3-High",
+          "complexity": "3-High",
+          "tasks": [
+            {
+              "pic": "TL",
+              "task_name": "Implement luồng đồng bộ IHUB (Coding)",
+              "status": "Not Started",
+              "start_date": "15/07/2026",
+              "due_date": "16/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Unit Test luồng đồng bộ",
+              "status": "Not Started",
+              "start_date": "17/07/2026",
+              "due_date": "17/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Code Review luồng đồng bộ IHUB",
+              "status": "Not Started",
+              "start_date": "31/07/2026",
+              "due_date": "31/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Review",
+              "task_process": "Review",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_4.3",
+          "module": "IHUB Sync - Logic",
+          "description": "(9) Xử lý logic dữ liệu được đồng bộ từ IHUB",
+          "priority": "3-High",
+          "complexity": "3-High",
+          "tasks": [
+            {
+              "pic": "TL",
+              "task_name": "Implement logic xử lý data IHUB (Coding)",
+              "status": "Not Started",
+              "start_date": "20/07/2026",
+              "due_date": "21/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "High"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Unit Test logic IHUB",
+              "status": "Not Started",
+              "start_date": "22/07/2026",
+              "due_date": "22/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Code Review & verify đồng bộ IHUB",
+              "status": "Not Started",
+              "start_date": "29/07/2026",
+              "due_date": "29/07/2026",
+              "est_effort_hour": 8,
+              "notes": "Peer review EPIC-4 bởi DEV1",
+              "task_complexity": 7,
+              "type_of_work": "Review",
+              "task_process": "Review",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Test đồng bộ IHUB (table+flow+logic)",
+              "status": "Not Started",
+              "start_date": "05/08/2026",
+              "due_date": "06/08/2026",
+              "est_effort_hour": 16,
+              "notes": "Gom US_4.1-4.3 thành 1 task test đồng bộ",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "High"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-5: Công trực & Bảng lương công trực",
+      "user_stories": [
+        {
+          "us_id": "US_5.1",
+          "module": "Công trực",
+          "description": "(10) Xử lý hiển thị công trực bảng lương và tính toán số liệu các loại công trực",
+          "priority": "2-Medium",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV2",
+              "task_name": "Implement hiển thị & tính công trực (Coding)",
+              "status": "Not Started",
+              "start_date": "21/07/2026",
+              "due_date": "22/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "DEV2",
+              "task_name": "Unit Test công trực",
+              "status": "Not Started",
+              "start_date": "23/07/2026",
+              "due_date": "23/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Test hiển thị & tính công trực",
+              "status": "Not Started",
+              "start_date": "07/08/2026",
+              "due_date": "07/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        },
+        {
+          "us_id": "US_5.2",
+          "module": "Công trực - Export & Approval",
+          "description": "(11) Xử lý xuất excel bảng lương và phê duyệt bảng lương công trực",
+          "priority": "2-Medium",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "DEV2",
+              "task_name": "Implement Excel export & phê duyệt công trực (Coding)",
+              "status": "Not Started",
+              "start_date": "27/07/2026",
+              "due_date": "28/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Coding",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "DEV2",
+              "task_name": "Unit Test export & phê duyệt công trực",
+              "status": "Not Started",
+              "start_date": "29/07/2026",
+              "due_date": "29/07/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Unit Test",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Test export excel & phê duyệt công trực",
+              "status": "Not Started",
+              "start_date": "10/08/2026",
+              "due_date": "10/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "epic": "EPIC-6: Pilot & Go-Live",
+      "user_stories": [
+        {
+          "us_id": "US_6.1",
+          "module": "Go-Live & Pilot",
+          "description": "Deploy production, UAT support, Pilot monitor & hotfix sau go-live",
+          "priority": "2-Medium",
+          "complexity": "2-Medium",
+          "tasks": [
+            {
+              "pic": "BA",
+              "task_name": "Viết UAT Scenario (tổng hợp)",
+              "status": "Not Started",
+              "start_date": "13/07/2026",
+              "due_date": "14/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Viết User Guide",
+              "status": "Not Started",
+              "start_date": "15/07/2026",
+              "due_date": "16/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Demo & Clear nghiệp vụ cho QC",
+              "status": "Not Started",
+              "start_date": "27/07/2026",
+              "due_date": "28/07/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Hỗ trợ QC testing",
+              "status": "Not Started",
+              "start_date": "03/08/2026",
+              "due_date": "04/08/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "BA",
+              "task_name": "Hỗ trợ UAT & Pilot user support",
+              "status": "Not Started",
+              "start_date": "11/08/2026",
+              "due_date": "12/08/2026",
+              "est_effort_hour": 16,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Requirement & Design",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "TL",
+              "task_name": "Production Deploy (Thu 13/08)",
+              "status": "Not Started",
+              "start_date": "13/08/2026",
+              "due_date": "13/08/2026",
+              "est_effort_hour": 8,
+              "notes": "Deploy chi T2/T4; UAT sign-off & QC done trước khi deploy",
+              "task_complexity": 8,
+              "type_of_work": "Do",
+              "task_process": "Deployment",
+              "task_priority": "High"
+            },
+            {
+              "pic": "DEV1",
+              "task_name": "Monitor & hotfix support (passive)",
+              "status": "Not Started",
+              "start_date": "13/08/2026",
+              "due_date": "13/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Maintenance",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "DEV2",
+              "task_name": "Monitor & hotfix support (passive)",
+              "status": "Not Started",
+              "start_date": "14/08/2026",
+              "due_date": "14/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Maintenance",
+              "task_priority": "Medium"
+            },
+            {
+              "pic": "QC2",
+              "task_name": "Post-deploy smoke test",
+              "status": "Not Started",
+              "start_date": "13/08/2026",
+              "due_date": "13/08/2026",
+              "est_effort_hour": 8,
+              "notes": "",
+              "task_complexity": 7,
+              "type_of_work": "Do",
+              "task_process": "Testing",
+              "task_priority": "Medium"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

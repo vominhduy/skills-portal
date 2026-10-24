@@ -1,0 +1,10 @@
+# Python dependencies for PM Webapp skills (Jira, HRM, Google Sheets, Gmail, Outlook, Mem0)
+requests>=2.31.0
+openpyxl>=3.1.2
+pandas>=2.0.0
+cryptography>=42.0.0
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.118.0
+python-dotenv>=1.0.0
+msal>=1.31.0

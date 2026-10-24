@@ -1,0 +1,26 @@
+# ==============================================================================
+# Skills Portal Git Ignore Configuration
+# ==============================================================================
+
+# Environment variables & local credentials (DO NOT COMMIT!)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Output reports & generated artifacts
+outputs/
+*.log
+
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+Desktop.ini

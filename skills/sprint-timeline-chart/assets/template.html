@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timeline & Resource Plan</title>
+<script id="project-data" type="application/json">
+{
+  "projectName": "ISC_FTI-FCR_v1.7_Product-Backlog_v1.0_20260422 - Sprint 3",
+  "startDate": "2026-04-20",
+  "endDate": "2026-05-29",
+  "teamSize": 6,
+  "teamComposition": "1 PM, 1 BA, 2 DEV, 2 QC",
+  "resources": [
+    {
+      "role": "PM",
+      "md": 9.75,
+      "color": "#534AB7"
+    },
+    {
+      "role": "BA",
+      "md": 10.75,
+      "color": "#1D9E75"
+    },
+    {
+      "role": "DEV",
+      "md": 48.5,
+      "color": "#378ADD"
+    },
+    {
+      "role": "QC",
+      "md": 16,
+      "color": "#EF9F27"
+    }
+  ],
+  "phases": [
+    {
+      "label": "Requirement & Planning",
+      "start": "2026-04-20",
+      "end": "2026-04-29",
+      "color": "#378ADD"
+    },
+	{
+      "label": "Development",
+      "start": "2026-04-20",
+      "end": "2026-05-18",
+      "color": "#A78FDD"
+    },
+    {
+      "label": "Testing",
+      "start": "2026-05-15",
+      "end": "2026-05-22",
+      "color": "#EF9F27"
+    },
+    {
+      "label": "UAT",
+      "start": "2026-05-22",
+      "end": "2026-05-27",
+      "color": "#5B8FF9"
+    },
+    {
+      "label": "Pilot",
+      "start": "2026-05-27",
+      "end": "2026-05-29",
+      "color": "#639922"
+    }
+  ],
+  "milestones": [
+    {
+      "name": "Sprint Planning Complete",
+      "date": "2026-04-29",
+      "status": "inprogress"
+    },
+	{
+      "name": "Dev Complete",
+      "date": "2026-05-18",
+      "status": "inprogress"
+    },
+    {
+      "name": "Sprint Review",
+      "date": "2026-05-25",
+      "status": "notstarted"
+    },
+	{
+      "name": "Production Deployment",
+      "date": "2026-05-27",
+      "status": "notstarted"
+    },
+    {
+      "name": "Go-Live",
+      "date": "2026-05-29",
+      "status": "notstarted"
+    }
+  ]
+}
+</script>
+<style>
+  /* Giữ nguyên CSS của bạn (tôi copy y nguyên để đảm bảo giao diện không thay đổi) */
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#1a1a2e;font-family:Arial,sans-serif;color:#e0e0e0;padding:16px;}
+  .card{background:#1e2235;border:1px solid #2e3250;border-radius:10px;padding:16px 20px;margin-bottom:14px;}
+  .section-label{font-size:11px;font-weight:700;color:#a0a8c0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+  .milestone-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 20px;}
+  .ms-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;}
+  .ms-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+  .ms-icon{width:24px;height:24px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;background:rgba(255,255,255,.08);box-shadow:0 0 0 2px var(--ms-color,#5a6080) inset, 0 1px 3px rgba(0,0,0,.35);}
+  .ms-name{font-size:12px;font-weight:600;color:#dde0f0;}
+  .ms-date{font-size:11px;color:#7880a0;margin-top:1px;}
+  .legend-row{display:flex;gap:18px;margin-top:12px;}
+  .leg-dot-sm{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .leg-label{font-size:11px;color:#8890b0;display:flex;align-items:center;gap:5px;}
+  .gantt-title{font-size:11px;font-weight:700;color:#a0a8c0;text-transform:uppercase;letter-spacing:.08em;}
+  .phase-legend{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 10px;}
+  .ph-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#8890b0;}
+  .ph-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .gantt-axis{display:grid;grid-template-columns:130px 1fr;margin-bottom:4px;}
+  .gantt-ticks{display:flex;justify-content:space-between;}
+  .gantt-tick{font-size:10px;color:#5a6080;}
+  .gantt-row{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:8px;margin-bottom:7px;}
+  .gantt-label{font-size:12px;color:#8890b0;text-align:right;padding-right:6px;}
+  .gantt-track{position:relative;height:28px;background:#252840;border-radius:4px;}
+  .gantt-bar{position:absolute;top:5px;height:18px;border-radius:3px;display:flex;align-items:center;padding:0 8px;}
+  .gantt-bar span{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;}
+  .pie-section-label{font-size:11px;font-weight:700;color:#a0a8c0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px;}
+  .pie-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;}
+  .pie-wrap{position:relative;width:100%;height:240px;}
+  .legend-list{display:flex;flex-direction:column;gap:12px;}
+  .leg-item{display:flex;align-items:center;gap:10px;}
+  .leg-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0;}
+  .leg-info{flex:1;}
+  .leg-role{font-size:13px;font-weight:600;color:#dde0f0;}
+  .leg-val{font-size:11px;color:#7880a0;margin-top:1px;}
+  .leg-pct{font-size:13px;font-weight:600;color:#c0c8e0;min-width:44px;text-align:right;}
+</style>
+</head>
+<body style="max-width: 1000px !important; margin: auto;">
+
+<div class="card">
+  <div class="section-label">Key Milestones</div>
+  <div class="milestone-grid" id="milestones"></div>
+  <div class="legend-row">
+    <span class="leg-label"><span class="leg-dot-sm" style="background:#639922;"></span>✅ Done</span>
+    <span class="leg-label"><span class="leg-dot-sm" style="background:#EF9F27;"></span>🔄 In progress</span>
+    <span class="leg-label"><span class="leg-dot-sm" style="background:#5a6080;"></span>⏳ Not started</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <div class="gantt-title">Timeline Gantt: <strong id="gantt-title" style="color: #dde0f0;">6</strong></div>
+    
+    <!-- Chỉ hiển thị Working days -->
+    <div style="color: #a0a8c0;" class="gantt-title" id="working-days-info">
+      Working days: <strong id="working-days" style="color: #dde0f0;">28</strong>
+    </div>
+  </div>
+
+  <div class="phase-legend" id="phase-legend"></div>
+  <div class="gantt-axis"><div></div><div class="gantt-ticks" id="ticks"></div></div>
+  <div id="gantt"></div>
+</div>
+
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div class="pie-section-label" id="pie-title" style="margin: 0;">
+      Phân bổ nguồn lực: Tổng <strong id="total-md" style="color: #dde0f0;">865.00</strong> MD
+    </div>
+    <div style="color: #a0a8c0; white-space: nowrap;" class="pie-section-label" id="team-size-info">
+      Team size: <strong id="team-size" style="color: #dde0f0;">6</strong> 
+      (<span id="team-composition">1 PM, 1 BA, 2 DEV, 2 QC</span>)
+    </div>
+  </div>
+
+  <div class="pie-row">
+    <div class="pie-wrap"><canvas id="pieChart"></canvas></div>
+    <div class="legend-list" id="resource-legend"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ==================== DỮ LIỆU JSON ====================
+const projectData = JSON.parse(
+  document.getElementById('project-data').textContent
+);
+
+// ==================== HÀM HỖ TRỢ ====================
+const START = new Date(projectData.startDate);
+const END = new Date(projectData.endDate);
+const totalDays = (END - START) / 86400000;
+
+function pct(d) {
+  const days = (new Date(d) - START) / 86400000;
+  return (days / totalDays * 100).toFixed(2) + '%';
+}
+
+function span(s, e) {
+  const days = (new Date(e) - new Date(s)) / 86400000;
+  return (days / totalDays * 100).toFixed(2) + '%';
+}
+
+// ==================== TẠO TICK DATES ĐỘNG ====================
+function generateTickDates() {
+  const ticks = [];
+  const startDate = new Date(START);
+  const endDate = new Date(END);
+
+  ticks.push(startDate);   // Luôn có ngày bắt đầu
+
+  let current = new Date(startDate);
+  
+  // Bắt đầu từ ngày 1 của tháng tiếp theo hoặc cách 7-10 ngày
+  while (current < endDate) {
+    current.setDate(current.getDate() + 7);   // bước nhảy 7 ngày
+    
+    // Điều chỉnh để có mốc ngày 1 của tháng nếu gần
+    if (current.getDate() > 20 && current.getMonth() !== endDate.getMonth()) {
+      current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+    }
+    
+    if (current > endDate) break;
+    ticks.push(new Date(current));
+  }
+
+  ticks.push(endDate);   // Luôn có ngày kết thúc
+
+  // Loại bỏ trùng lặp và format thành dd/mm
+  const uniqueTicks = [];
+  ticks.forEach(t => {
+    const formatted = t.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    if (!uniqueTicks.some(item => item.formatted === formatted)) {
+      uniqueTicks.push({ date: t, formatted });
+    }
+  });
+
+  return uniqueTicks.map(t => t.formatted);
+}
+
+// ==================== RENDER MILESTONES ====================
+// Map tên milestone → emoji icon cho sinh động. Cho phép override qua ms.icon.
+function milestoneIcon(name, status, icon) {
+  if (icon) return String(icon);
+  const n = String(name || "").toLowerCase();
+  if (n.includes("go-live") || n.includes("go live") || n.includes("launch")) return "🚀";
+  if (n.includes("deploy")) return "📦";
+  if (n.includes("review")) return "🔍";
+  if (n.includes("planning")) return "📋";
+  if (n.includes("dev complete") || n.includes("development complete")) return "✅";
+  if (n.includes("dev") || n.includes("development") || n.includes("coding")) return "💻";
+  if (n.includes("uat")) return "🧪";
+  if (n.includes("test") || n.includes("qa") || n.includes("qc")) return "🧪";
+  if (n.includes("design")) return "🎨";
+  if (n.includes("kickoff") || n.includes("kick-off")) return "🏁";
+  if (n.includes("release")) return "🎯";
+  if (n.includes("pilot")) return "✈️";
+  if (n.includes("handover") || n.includes("hand-off")) return "🤝";
+  if (n.includes("sign-off") || n.includes("signoff")) return "✍️";
+  if (n.includes("demo")) return "🖥️";
+  if (n.includes("retro")) return "🔁";
+  if (n.includes("requirement") || n.includes("analysis")) return "📐";
+  if (status === "done") return "✅";
+  if (status === "inprogress") return "🔄";
+  return "⏳";
+}
+
+function renderMilestones() {
+  const container = document.getElementById('milestones');
+  container.innerHTML = '';
+
+  const statusColor = {
+    done: '#639922',
+    inprogress: '#EF9F27',
+    notstarted: '#5a6080'
+  };
+
+  projectData.milestones.forEach(ms => {
+    const div = document.createElement('div');
+    div.className = 'ms-item';
+    const color = statusColor[ms.status] || '#999';
+    const icon = document.createElement('span');
+    icon.className = 'ms-icon';
+    icon.style.setProperty('--ms-color', color);
+    icon.textContent = milestoneIcon(ms.name, ms.status, ms.icon); // textContent - chống XSS
+    const wrap = document.createElement('div');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'ms-name';
+    nameEl.textContent = ms.name; // textContent - chống XSS qua user JSON
+    const dateEl = document.createElement('div');
+    dateEl.className = 'ms-date';
+    dateEl.textContent = String(ms.date || '').split('-').reverse().join('/');
+    wrap.appendChild(nameEl);
+    wrap.appendChild(dateEl);
+    div.appendChild(icon);
+    div.appendChild(wrap);
+    container.appendChild(div);
+  });
+}
+
+// ==================== RENDER GANTT ====================
+function renderGantt() {
+  document.getElementById('gantt-title').textContent = 
+    `${projectData.startDate.split('-').reverse().join('/')} → ${projectData.endDate.split('-').reverse().join('/')}`;
+
+  // Render phase legend
+  const legendEl = document.getElementById('phase-legend');
+  legendEl.innerHTML = '';
+  projectData.phases.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'ph-item';
+    const dot = document.createElement('span');
+    dot.className = 'ph-dot';
+    dot.style.background = p.color || '#999';
+    item.appendChild(dot);
+    const label = document.createTextNode(p.label || '');
+    item.appendChild(label); // text - chống XSS qua user JSON
+    legendEl.appendChild(item);
+  });
+
+  // Render ticks động
+  const tickDates = generateTickDates();
+  const ticksEl = document.getElementById('ticks');
+  ticksEl.innerHTML = '';
+  tickDates.forEach(d => {
+    const s = document.createElement('span');
+    s.className = 'gantt-tick';
+    s.textContent = d;
+    ticksEl.appendChild(s);
+  });
+
+  // Render phases (giữ nguyên logic cũ)
+  const ganttEl = document.getElementById('gantt');
+  ganttEl.innerHTML = '';
+
+  projectData.phases.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'gantt-row';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'gantt-label';
+    lbl.textContent = p.label;
+
+    const track = document.createElement('div');
+    track.className = 'gantt-track';
+
+    if (!p.end || p.start === p.end) {
+      const bar = document.createElement('div');
+      bar.style.cssText = `position:absolute;left:${pct(p.start)};top:4px;width:4px;height:20px;background:${p.color};border-radius:2px;`;
+      const lbr = document.createElement('div');
+      lbr.style.cssText = `position:absolute;left:calc(${pct(p.start)} + 8px);top:6px;font-size:11px;font-weight:600;color:${p.color};white-space:nowrap;`;
+      lbr.textContent = p.start.slice(8,10)+'/'+p.start.slice(5,7);
+      track.appendChild(bar);
+      track.appendChild(lbr);
+      console.log(p.start)
+    } else {
+      const bar = document.createElement('div');
+      bar.className = 'gantt-bar';
+      bar.style.cssText = `left:${pct(p.start)};width:${span(p.start, p.end)};background:${p.color};`;
+      const txt = document.createElement('span');
+      const s = p.start.slice(8,10)+'/'+p.start.slice(5,7);
+      const e = p.end.slice(8,10)+'/'+p.end.slice(5,7);
+      txt.textContent = `${s} → ${e}`;
+      bar.appendChild(txt);
+      track.appendChild(bar);
+    }
+
+    row.appendChild(lbl);
+    row.appendChild(track);
+    ganttEl.appendChild(row);
+  });
+
+  /**
+ * Tính số ngày làm việc (business days) giữa startDate và endDate
+ * @param {Date|string} startDate 
+ * @param {Date|string} endDate 
+ * @returns {number} Số ngày làm việc
+ */
+function calculateWorkingDays(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Kiểm tra dữ liệu hợp lệ
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return 0;
+    }
+    
+    // Đảm bảo start <= end
+    if (start > end) {
+        return 0;
+    }
+
+    let count = 0;
+    const current = new Date(start);
+
+    while (current <= end) {
+        const dayOfWeek = current.getDay(); // 0 = CN, 1 = T2, ..., 6 = T7
+        
+        // Chỉ tính nếu là thứ 2 đến thứ 6
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            count++;
+        }
+        
+        current.setDate(current.getDate() + 1);
+    }
+
+    return count;
+}
+
+  // ==================== THÊM PHẦN NÀY VÀO CUỐI HÀM ====================
+  // Cập nhật Working days
+  const workingDaysEl = document.getElementById('working-days');
+  if (workingDaysEl) {
+    const wd = projectData?.startDate && projectData?.endDate 
+        ? calculateWorkingDays(projectData.startDate, projectData.endDate) 
+        : '-';
+    
+    workingDaysEl.textContent = wd;
+  }
+}
+
+// ==================== RENDER RESOURCE PIE CHART ====================
+let pieChartInstance = null;
+
+function renderResourceChart() {
+  const totalMD = projectData.resources.reduce((sum, r) => sum + r.md, 0);
+  
+  // Cập nhật Total MD
+  document.getElementById('total-md').textContent = totalMD.toFixed(2);
+
+  // Cập nhật Team Size
+  if (projectData.teamSize) {
+    document.getElementById('team-size').textContent = projectData.teamSize;
+  }
+  if (projectData.teamComposition) {
+    document.getElementById('team-composition').textContent = projectData.teamComposition;
+  }
+
+  // Render legend
+  const legendEl = document.getElementById('resource-legend');
+  legendEl.innerHTML = '';
+
+  projectData.resources.forEach(r => {
+    const pctVal = (r.md / totalMD * 100).toFixed(1);
+    const item = document.createElement('div');
+    item.className = 'leg-item';
+    const dot = document.createElement('span');
+    dot.className = 'leg-dot';
+    dot.style.background = r.color || '#999';
+    const info = document.createElement('div');
+    info.className = 'leg-info';
+    const roleEl = document.createElement('div');
+    roleEl.className = 'leg-role';
+    roleEl.textContent = r.role; // textContent - chống XSS qua user JSON
+    const valEl = document.createElement('div');
+    valEl.className = 'leg-val';
+    valEl.textContent = `${r.md.toFixed(2)} MD`;
+    info.appendChild(roleEl);
+    info.appendChild(valEl);
+    const pct = document.createElement('span');
+    pct.className = 'leg-pct';
+    pct.textContent = `${pctVal}%`;
+    item.appendChild(dot);
+    item.appendChild(info);
+    item.appendChild(pct);
+    legendEl.appendChild(item);
+  });
+
+  // Render Pie Chart
+  if (pieChartInstance) pieChartInstance.destroy();
+
+  pieChartInstance = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: projectData.resources.map(r => r.role),
+      datasets: [{
+        data: projectData.resources.map(r => r.md),
+        backgroundColor: projectData.resources.map(r => r.color),
+        borderWidth: 3,
+        borderColor: '#1e2235',
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const p = (c.parsed / totalMD * 100).toFixed(1);
+              return ` ${c.parsed.toFixed(2)} MD (${p}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ==================== KHỞI CHẠY ====================
+function initDashboard() {
+  renderMilestones();
+  renderGantt();
+  renderResourceChart();
+}
+
+// Chạy khi load trang
+window.onload = initDashboard;
+</script>
+</body>
+</html>
