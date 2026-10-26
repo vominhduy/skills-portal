@@ -33,17 +33,43 @@ def parse_args():
                         help='Output directory injected by webapp')
     return parser.parse_known_args()[0]
 
+_shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
+from output_path import ensure_versioned_path, resolve_input_path
+
 args = parse_args()
-JSON_FILE = args.json_file
+JSON_FILE = resolve_input_path(args.json_file)
 USE_OLD_FORMAT = args.old_format
 
 # Auto-create sheet name from JSON file (sprint1_backlog.json → Sprint 1)
 _match = re.search(r'sprint(\d+)', JSON_FILE, re.IGNORECASE)
 _sprint_num = _match.group(1) if _match else "1"
 NEW_SHEET_NAME = f"Sprint {_sprint_num}"
-EXCEL_FILE = args.output or args.output_file or "Sprint_Plan_Raw.xlsx"
+_raw_excel_file = args.output or args.output_file or "Sprint_Plan_Raw.xlsx"
+if args.output_dir and not os.path.isabs(_raw_excel_file):
+    _raw_excel_file = os.path.join(args.output_dir, os.path.basename(_raw_excel_file))
+EXCEL_FILE = ensure_versioned_path(_raw_excel_file)
 
-from openpyxl.cell.rich_text import CellRichText, TextBlock, InlineFont
+
+try:
+    from openpyxl.cell.rich_text import CellRichText, TextBlock, InlineFont
+    HAS_RICH_TEXT = True
+except (ImportError, ModuleNotFoundError):
+    HAS_RICH_TEXT = False
+    CellRichText = None
+    TextBlock = None
+    InlineFont = None
+
+def optimize_for_excel_online(file_path):
+    try:
+        _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+        if _shared_dir not in sys.path:
+            sys.path.insert(0, _shared_dir)
+        from xlsx_normalizer import normalize_xlsx_file
+        normalize_xlsx_file(file_path)
+    except Exception:
+        pass
 
 # ==================== MÀU SẮC ====================
 # Colors for new template format
@@ -153,10 +179,14 @@ def create_plan_sheet_excel():
     sprint_number = data.get("sprint_number", _sprint_num)
 
     # Row 1: Project name - rich text: [] đỏ ED7D31, Project Planning ➜ xanh 0B5394
-    ws['B1'] = CellRichText(
-        TextBlock(InlineFont(sz=24, b=True, color="ED7D31"), f"[{project_name} Sprint {sprint_number}] "),
-        TextBlock(InlineFont(sz=24, b=True, color="0B5394"), "Project Planning ➜")
-    )
+    if HAS_RICH_TEXT:
+        ws['B1'] = CellRichText(
+            TextBlock(InlineFont(sz=24, b=True, color="ED7D31"), f"[{project_name} Sprint {sprint_number}] "),
+            TextBlock(InlineFont(sz=24, b=True, color="0B5394"), "Project Planning ➜")
+        )
+    else:
+        ws['B1'] = f"[{project_name} Sprint {sprint_number}] Project Planning ➜"
+        ws['B1'].font = Font(name="Calibri", sz=18, bold=True, color="0B5394")
     ws['B1'].alignment = Alignment(horizontal="left", vertical="center")
     ws['B1'].alignment = Alignment(horizontal="left", vertical="center")
     ws.merge_cells('B1:J1')
@@ -445,6 +475,15 @@ def create_plan_sheet_excel():
 
     # ==================== SAVE ====================
     wb.save(EXCEL_FILE)
+    try:
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        if _script_dir not in sys.path:
+            sys.path.insert(0, _script_dir)
+        from generate_xlsxwriter import build_project_plan
+        build_project_plan(data, EXCEL_FILE)
+    except Exception as e:
+        print(f"Warning: XlsxWriter fallback error: {e}")
+    optimize_for_excel_online(EXCEL_FILE)
     print(f"✅ Đã tạo thành công file Excel (mẫu mới - mỗi epic là phase): {EXCEL_FILE}")
     print(f" → Sheet: '{NEW_SHEET_NAME}'")
     print(f" → Số epic (phase): {len(epic_order)}")
@@ -755,6 +794,7 @@ def create_legacy_sheet_excel():
 
     # Lưu file Excel mới
     wb.save(EXCEL_FILE)
+    optimize_for_excel_online(EXCEL_FILE)
     print(f"✅ Đã tạo thành công file Excel (mẫu cũ): {EXCEL_FILE}")
     print(f" → Sheet: '{NEW_SHEET_NAME}'")
     print(f" → Số dòng Epic: {len(epic_rows)}")

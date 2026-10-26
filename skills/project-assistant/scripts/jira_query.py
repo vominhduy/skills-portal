@@ -19,6 +19,7 @@ if SCRIPT_DIR not in sys.path:
 
 try:
     from jira_client import JiraClient, get_credentials, is_error, make_request
+    from output_path import next_version_number, now_hhmmss
 except ImportError as e:
     print(f"❌ Không import được shared jira_client: {e}", file=sys.stderr)
     sys.exit(1)
@@ -38,10 +39,8 @@ def get_story_points(fields: Dict[str, Any]) -> Optional[float]:
 
 
 def next_version(out_dir: str, slug: str) -> int:
-    v = 1
-    while os.path.isfile(os.path.join(out_dir, f"{slug}_v{v}.json")):
-        v += 1
-    return v
+    return next_version_number(out_dir, slug, extensions=".json")
+
 
 
 def parse_issue_fields(raw_issue: Dict[str, Any]) -> Dict[str, Any]:
@@ -266,7 +265,8 @@ def main() -> None:
         sys.exit(1)
 
     ver = next_version(out, args.slug)
-    json_file = os.path.join(out, f"{args.slug}_v{ver}.json")
+    hhmmss = now_hhmmss()
+    json_file = os.path.join(out, f"{args.slug}_v{ver}_{hhmmss}.json")
 
     payload = {
         "schema_version": "1.0",

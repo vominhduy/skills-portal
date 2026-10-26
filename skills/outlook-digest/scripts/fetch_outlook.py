@@ -19,16 +19,19 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
+SHARED_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "_shared"))
+if SHARED_DIR not in sys.path:
+    sys.path.insert(0, SHARED_DIR)
+
 from content_crypto import encrypt_text  # noqa: E402
 from outlook_client import fetch_messages, _decode_mime_str, _clean_html  # noqa: E402
 from sensitive_filter import process_message  # noqa: E402
+from output_path import next_version_number, now_hhmmss  # noqa: E402
 
 
 def next_version(out_dir: str, slug: str) -> int:
-    v = 1
-    while os.path.isfile(os.path.join(out_dir, f"{slug}_v{v}_safe.json")):
-        v += 1
-    return v
+    return next_version_number(out_dir, slug, extensions=".json", suffix_tail="_safe")
+
 
 
 def build_query(args: argparse.Namespace) -> str:
@@ -228,7 +231,8 @@ def main() -> None:
         )
 
     version = next_version(out, args.slug)
-    base = f"{args.slug}_v{version}"
+    hhmmss = now_hhmmss()
+    base = f"{args.slug}_v{version}_{hhmmss}"
 
     safe_doc = {
         "version": version,

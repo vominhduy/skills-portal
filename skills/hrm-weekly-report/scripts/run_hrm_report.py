@@ -60,17 +60,18 @@ def default_week_range():
     return monday.isoformat(), sunday.isoformat()
 
 
+SHARED_DIR = Path(__file__).resolve().parents[2] / "_shared"
+if str(SHARED_DIR) not in sys.path:
+    sys.path.insert(0, str(SHARED_DIR))
+from output_path import next_version_number, now_hhmmss, resolve_input_path
+
+
 def next_version_path(output_dir, base_name, ext):
-    """Tìm version tiếp theo: hrm_weekly_report_v1.json, _v2.json, ... (không ghi đè)."""
-    existing = []
-    if os.path.isdir(output_dir):
-        pat = re.compile(rf"^{re.escape(base_name)}_v(\d+)\.{re.escape(ext)}$")
-        for fn in os.listdir(output_dir):
-            m = pat.match(fn)
-            if m:
-                existing.append(int(m.group(1)))
-    next_v = (max(existing) + 1) if existing else 1
-    return os.path.join(output_dir, f"{base_name}_v{next_v}.{ext}"), next_v
+    """Tìm version tiếp theo: hrm_weekly_report_v1_HHMMSS.json, _v2_HHMMSS.json, ... (không ghi đè)."""
+    next_v = next_version_number(output_dir, base_name, extensions=f".{ext.lstrip('.')}")
+    hhmmss = now_hhmmss()
+    return os.path.join(output_dir, f"{base_name}_v{next_v}_{hhmmss}.{ext.lstrip('.')}"), next_v
+
 
 
 def is_project_in_division(project: dict, target_div: str) -> bool:
@@ -152,8 +153,9 @@ def main():
 
     # 1 & 2: Lấy dữ liệu danh sách dự án (từ file JSON truyền vào hoặc qua API HRM)
     if args.input_json:
-        print(f"[HRM] Nạp danh sách dự án từ file JSON: {args.input_json}...")
-        with open(args.input_json, "r", encoding="utf-8") as f:
+        resolved_input = resolve_input_path(args.input_json, output_dir)
+        print(f"[HRM] Nạp danh sách dự án từ file JSON: {resolved_input}...")
+        with open(resolved_input, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
             if isinstance(raw_data, dict) and "projects" in raw_data:
                 projects = raw_data["projects"]

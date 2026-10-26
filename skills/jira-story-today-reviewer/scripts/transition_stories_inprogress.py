@@ -26,6 +26,7 @@ if str(SHARED_DIR) not in sys.path:
 
 try:
     from jira_client import JiraClient
+    from output_path import next_version_number, now_hhmmss, resolve_input_path, split_version_and_time
 except ImportError as e:
     print(f"[!] Không thể import jira_client từ {SHARED_DIR}: {e}", file=sys.stderr)
     sys.exit(1)
@@ -49,26 +50,17 @@ def find_latest_story_json(output_dir: Path) -> Optional[Path]:
     files = list(output_dir.glob("story_today_review_v*.json"))
     if not files:
         return None
-    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    files.sort(
+        key=lambda f: (split_version_and_time(f.stem)[1] or 0, f.stat().st_mtime),
+        reverse=True,
+    )
     return files[0]
 
 
 def get_next_inprogress_version(output_dir: Path) -> int:
-    """Xác định version tiếp theo cho story_inprogress_vN.json."""
-    if not output_dir.exists():
-        return 1
-    existing = list(output_dir.glob("story_inprogress_v*.json"))
-    if not existing:
-        return 1
-    max_v = 0
-    for p in existing:
-        stem = p.stem  # story_inprogress_v1
-        try:
-            v_str = stem.split("_v")[-1]
-            max_v = max(max_v, int(v_str))
-        except (ValueError, IndexError):
-            continue
-    return max_v + 1
+    """Xác định version tiếp theo cho story_inprogress_vN_HHMMSS.json."""
+    return next_version_number(output_dir, "story_inprogress", extensions=[".json", ".md"])
+
 
 
 def main():
@@ -83,7 +75,7 @@ def main():
         target_keys = [k.strip().upper() for k in args.keys.split(",") if k.strip()]
         source_info = f"Chỉ định trực tiếp ({len(target_keys)} keys)"
     else:
-        json_file = Path(args.input_json).resolve() if args.input_json else find_latest_story_json(output_dir)
+        json_file = Path(resolve_input_path(args.input_json, output_dir)).resolve() if args.input_json else find_latest_story_json(output_dir)
         if not json_file or not json_file.exists():
             print(f"[!] Không tìm thấy file dữ liệu Story JSON nào trong {output_dir}")
             sys.exit(1)
@@ -149,8 +141,9 @@ def main():
             })
 
     version = get_next_inprogress_version(output_dir)
-    json_path = output_dir / f"story_inprogress_v{version}.json"
-    md_path = output_dir / f"story_inprogress_v{version}.md"
+    hhmmss = now_hhmmss()
+    json_path = output_dir / f"story_inprogress_v{version}_{hhmmss}.json"
+    md_path = output_dir / f"story_inprogress_v{version}_{hhmmss}.md"
 
     output_payload = {
         "metadata": {

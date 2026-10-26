@@ -3,11 +3,110 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:
+    class _RequestException(Exception):
+        def __init__(self, message: str = "", response: Any = None):
+            super().__init__(message)
+            self.response = response
+
+    class _HTTPError(_RequestException):
+        pass
+
+    class _ConnectionError(_RequestException):
+        pass
+
+    class _ConnectTimeout(_ConnectionError):
+        pass
+
+    class _ReadTimeout(_RequestException):
+        pass
+
+    class _ProxyError(_ConnectionError):
+        pass
+
+    class _SSLError(_ConnectionError):
+        pass
+
+    class _Exceptions:
+        RequestException = _RequestException
+        HTTPError = _HTTPError
+        ConnectionError = _ConnectionError
+        ConnectTimeout = _ConnectTimeout
+        ReadTimeout = _ReadTimeout
+        ProxyError = _ProxyError
+        SSLError = _SSLError
+
+    class _Response:
+        def __init__(self, status_code: int, content: bytes, headers: Dict[str, str], reason: str = ""):
+            self.status_code = status_code
+            self.content = content
+            self.headers = headers
+            self.reason = reason
+
+        @property
+        def text(self) -> str:
+            return self.content.decode("utf-8", errors="replace")
+
+        def json(self) -> Any:
+            return json.loads(self.text) if self.content else {}
+
+        def raise_for_status(self) -> None:
+            if 400 <= self.status_code < 600:
+                raise _HTTPError(f"HTTP {self.status_code}: {self.reason}", response=self)
+
+    class _Session:
+        def __init__(self) -> None:
+            self.trust_env = True
+            self.proxies: Dict[str, Optional[str]] = {}
+
+        def request(self, method: str, url: str, timeout: Any = 10, **kwargs: Any) -> _Response:
+            params = kwargs.get("params")
+            if params:
+                qs = urllib.parse.urlencode(params, doseq=True)
+                sep = "&" if "?" in url else "?"
+                url = f"{url}{sep}{qs}"
+            headers = dict(kwargs.get("headers") or {})
+            data = kwargs.get("data")
+            if "json" in kwargs and kwargs["json"] is not None:
+                data = json.dumps(kwargs["json"]).encode("utf-8")
+                headers.setdefault("Content-Type", "application/json")
+            elif isinstance(data, str):
+                data = data.encode("utf-8")
+
+            req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
+            handlers = []
+            if not self.trust_env:
+                active_proxies = {k: v for k, v in (self.proxies or {}).items() if v}
+                handlers.append(urllib.request.ProxyHandler(active_proxies))
+            opener = urllib.request.build_opener(*handlers)
+            t_val = timeout[1] if isinstance(timeout, tuple) else float(timeout or 10)
+            try:
+                with opener.open(req, timeout=t_val) as resp:
+                    body = resp.read()
+                    hdrs = dict(resp.headers.items())
+                    return _Response(resp.status, body, hdrs, getattr(resp, "reason", ""))
+            except urllib.error.HTTPError as e:
+                body = e.read() if hasattr(e, "read") else b""
+                hdrs = dict(e.headers.items()) if e.headers else {}
+                return _Response(e.code, body, hdrs, getattr(e, "reason", ""))
+            except Exception as e:
+                raise _ConnectionError(str(e)) from e
+
+    class _RequestsShim:
+        exceptions = _Exceptions
+        Session = _Session
+        Response = _Response
+
+    requests = _RequestsShim()  # type: ignore
 
 DEFAULT_TIMEOUT = 10
 JIRA_TIMEOUT = 10
@@ -84,8 +183,6 @@ def default_mode_order(route: str) -> List[Tuple[str, str]]:
     proxied = ("proxy", "use_proxy") if proxies else None
     env_default = ("env", "trust_env")
 
-    # Với Jira, Google, Microsoft trong môi trường có Proxy (như FPT):
-    # Ưu tiên proxy trước để phản hồi tức thì (<1s), tránh bị timeout direct 30s
     if route in ("jira", "google", "microsoft"):
         order = []
         if proxied:
@@ -124,14 +221,14 @@ def forget_route(route: str) -> None:
     _save_disk_cache(_MODE_CACHE)
 
 
-def session_for_mode(mode_key: str, proxies: Optional[Dict[str, str]]) -> requests.Session:
+def session_for_mode(mode_key: str, proxies: Optional[Dict[str, str]]) -> Any:
     s = requests.Session()
     apply_mode_to_session(s, mode_key, proxies)
     return s
 
 
 def apply_mode_to_session(
-    session: requests.Session,
+    session: Any,
     mode_key: str,
     proxies: Optional[Dict[str, str]],
 ) -> None:
@@ -178,7 +275,7 @@ def request_with_proxy_fallback(
     *,
     timeout: Optional[float | Tuple[float, float]] = None,
     **kwargs: Any,
-) -> requests.Response:
+) -> Any:
     """Gọi HTTP - thử các mode; cache mode thành công theo host group."""
     t = timeout if timeout is not None else timeout_for_url(url)
     route = host_route(url)
@@ -187,7 +284,6 @@ def request_with_proxy_fallback(
     last_err: Optional[BaseException] = None
 
     for label, mode_key in modes:
-        # Nếu là direct ("no_proxy"), rút ngắn connect timeout xuống 3.5s để tránh treo quá lâu
         if isinstance(t, (int, float)) and mode_key == "no_proxy":
             req_t: Any = (min(3.5, float(t)), float(t))
         else:
@@ -223,11 +319,11 @@ def request_with_proxy_fallback(
 
 
 def configure_session_proxy_fallback(
-    session: requests.Session,
+    session: Any,
     url_hint: str,
     *,
     timeout: Optional[float] = None,
-) -> requests.Session:
+) -> Any:
     """Gắn fallback + cache mode lên session (AuthorizedSession / gspread)."""
     proxies = env_proxy_map()
     original_request = session.request

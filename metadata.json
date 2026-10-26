@@ -1,0 +1,8 @@
+{
+  "name": "Skills Portal & .env Configurator - Standalone Studio",
+  "description": "Trung tâm quản lý, xem Guideline và cấu hình biến môi trường .env trực quan cho các Skill tự động hóa PM Webapp. Không cần server backend, chạy hoàn toàn offline.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

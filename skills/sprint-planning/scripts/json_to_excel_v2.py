@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import re
+import sys
 from datetime import datetime
 
 from openpyxl import Workbook
@@ -30,16 +31,35 @@ def parse_args():
     return parser.parse_known_args()[0]
 
 
+_shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
+from output_path import ensure_versioned_path, resolve_input_path
+
 args = parse_args()
-JSON_FILE = args.json_file
+JSON_FILE = resolve_input_path(args.json_file)
 
 # Tự động tạo tên sheet từ tên file (sprint1_backlog.json -> Sprint 1)
 _match = re.search(r"sprint(\d+)", JSON_FILE, re.IGNORECASE)
 _sprint_num = _match.group(1) if _match else "1"
 NEW_SHEET_NAME = f"Sprint {_sprint_num}"
 
-# Tên file Excel sẽ được tạo
-EXCEL_FILE = args.output or args.output_file or "Sprint_Backlog_Raw.xlsx"
+# Tên file Excel sẽ được tạo (bắt buộc kèm _v{N}_{HHMMSS})
+_raw_excel_file = args.output or args.output_file or "Sprint_Backlog_Raw.xlsx"
+if args.output_dir and not os.path.isabs(_raw_excel_file):
+    _raw_excel_file = os.path.join(args.output_dir, os.path.basename(_raw_excel_file))
+EXCEL_FILE = ensure_versioned_path(_raw_excel_file)
+
+
+def optimize_for_excel_online(file_path):
+    try:
+        _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+        if _shared_dir not in sys.path:
+            sys.path.insert(0, _shared_dir)
+        from xlsx_normalizer import normalize_xlsx_file
+        normalize_xlsx_file(file_path)
+    except Exception:
+        pass
 
 # ==================== MÀU SẮC ====================
 COLOR_HEADER = PatternFill(start_color="D6DCE4", end_color="D6DCE4", fill_type="solid")
@@ -439,6 +459,15 @@ def create_new_sprint_excel():
 
     # Lưu file Excel mới
     wb.save(EXCEL_FILE)
+    try:
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        if _script_dir not in sys.path:
+            sys.path.insert(0, _script_dir)
+        from generate_xlsxwriter import build_sprint_backlog
+        build_sprint_backlog(data, EXCEL_FILE)
+    except Exception as e:
+        print(f"Warning: XlsxWriter fallback error: {e}")
+    optimize_for_excel_online(EXCEL_FILE)
     print(f"✅ Đã tạo thành công file Excel Sprint Backlog: **{EXCEL_FILE}**")
     print(f" -> Sheet: '{NEW_SHEET_NAME}'")
     print(f" -> Số dòng Epic: {len(epic_rows)}")

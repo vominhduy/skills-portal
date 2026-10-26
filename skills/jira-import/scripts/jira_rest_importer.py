@@ -362,7 +362,13 @@ def main():
     print(f"🚀 JIRA IMPORTER - Mode: {'DRY-RUN' if args.dry_run else 'CREATE MODE'}")
     print(f"{'='*90}\n")
 
-    with open(args.input_file, "r", encoding="utf-8") as f:
+    _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+    if _shared_dir not in sys.path:
+        sys.path.insert(0, _shared_dir)
+    from output_path import resolve_input_path
+
+    resolved_input_file = resolve_input_path(args.input_file)
+    with open(resolved_input_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     project = data.get("project", "FSM")

@@ -159,11 +159,12 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .nav-brand {
@@ -188,7 +189,7 @@ body {
 }
 
 .brand-info h1 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   background: var(--accent-gradient);
@@ -197,14 +198,15 @@ body {
 }
 
 .brand-info p {
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--text-muted);
 }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .btn {
@@ -550,15 +552,17 @@ body {
 /* Navigation Tabs */
 .content-tabs {
   display: flex;
+  flex-wrap: wrap;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
-  padding: 0 2rem;
-  gap: 1rem;
+  padding: 0 1.25rem;
+  gap: 0.65rem;
+  overflow-x: auto;
 }
 
 .tab-btn {
-  padding: 0.85rem 0.5rem;
-  font-size: 0.88rem;
+  padding: 0.75rem 0.45rem;
+  font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
@@ -567,7 +571,8 @@ body {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  white-space: nowrap;
+  gap: 0.4rem;
   transition: all var(--transition-fast);
 }
 

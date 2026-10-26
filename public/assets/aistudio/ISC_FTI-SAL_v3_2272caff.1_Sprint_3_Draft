@@ -1,0 +1,28 @@
+"FTI-SAL v3.0 | Import lương Kênh khối ngoại, HĐ Tân Thuận – Feature Detail",,,,,
+"Bối cảnh: doanh thu kênh khối ngoại và hoá đơn Tân Thuận (TTTT) chưa phân tách được về hợp đồng/CID trên hệ thống; kinh doanh đang quản lý tay theo số CID.
+Giải pháp: tách màn hình theo vai trò – Trưởng đơn vị / TPP khai báo thông tin CID, Nhân viên KD import doanh thu theo hoá đơn + CID.
+Nguồn: URD FTI-SAL v3.0 Sprint 7 (mục Nhóm import lương Kênh khối ngoại, HĐ Tân Thuận) + yêu cầu bổ sung + rule trao đổi. Nội dung ghi ""(đề xuất)"" là giả định cần chốt – xem sheet Điểm cần chốt.",,,,,
+,,,,,
+FR,Chức năng,Trạng thái,Người thực hiện,Chức năng làm gì,Điểm thay đổi so với hiện tại
+FR01,Menu & màn hình theo vai trò,🔄 Cập nhật,"TĐV / TPP,
+Nhân viên KD","Mỗi vai trò có menu và màn hình riêng:
+• TĐV / TPP: Import lương › Khai báo CID khối ngoại
+• Nhân viên KD: Import lương › Kênh khối ngoại, HĐ Tân Thuận","• Thêm menu Khai báo CID khối ngoại cho TĐV / TPP
+• Menu của Nhân viên KD giữ tên cũ"
+FR02,Khai báo CID khối ngoại,🆕 Mới,TĐV / TPP,"Xem, import, xuất excel, xoá thông tin CID quản lý tay:
+Đối tác, Circuit ID, Ngày nghiệm thu CID, Phân loại doanh thu.","Chức năng mới, làm trước khi Nhân viên KD import lương"
+FR03,"Import lương Kênh khối ngoại, HĐ Tân Thuận",🔄 Cập nhật,Nhân viên KD,"Xem, import, xuất excel, xoá dữ liệu lương theo hoá đơn
+U, M và TTTT, gắn với Circuit ID đã khai báo.","• Thêm bộ lọc và cột Circuit ID
+• Thêm cột Phân loại doanh thu, Loại dịch vụ
+• Template mới, kiểm tra Circuit ID, mẫu số HĐơn / HĐ,
+  1 hoá đơn – 1 dịch vụ; file có lỗi → chặn import"
+FR04,Tự động xác định theo CID,🆕 Mới,Hệ thống,"Tự tính Loại doanh thu (Ký mới / Gia hạn), map Phân loại doanh thu
+và Ngày nghiệm thu theo Circuit ID do TĐV / TPP khai báo.","Thay cho việc lấy từ FTI-CM
+(CID quản lý tay chưa có trên CM)"
+FR05,Bảng lương nhân viên & Chi tiết lương dịch vụ,🔄 Cập nhật,"Nhân viên KD, TPP,
+BOD, HR","Dữ liệu import sau khi map Circuit ID được tính lương SP
+và hiển thị lên Bảng lương nhân viên, Chi tiết lương dịch vụ.","• Cộng vào nhóm KTR, KTR khối ngoại, Server, HIGIO Cloud
+• Chi tiết lương dịch vụ thêm dòng nguồn Import KNg/TT
+• Bảng lương đã gửi → khoá import / xóa kỳ đó"
+,,,,,
+,Link artifact : https://claude.ai/artifact/L8DPuGe2JtDy1TioSDbCQY,,,,

@@ -160,6 +160,14 @@ def main():
     # Board name (tùy chọn) - dùng khi sprint rỗng, JQL không tìm được sprint ID.
     BOARD_NAME     = sys.argv[9] if len(sys.argv) > 9 else None
 
+    _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+    if _shared_dir not in sys.path:
+        sys.path.insert(0, _shared_dir)
+    from output_path import ensure_versioned_path, resolve_input_path
+
+    excel_path = resolve_input_path(excel_path)
+    output_json = ensure_versioned_path(output_json)
+
     print(f"📖 Đang đọc Excel : {excel_path}")
     print(f"   Sheet         : {sheet_name}")
     print(f"   Project       : {PROJECT}")

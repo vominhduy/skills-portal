@@ -21,7 +21,13 @@ import sys
 from datetime import datetime, timezone, timedelta, date
 from typing import Dict, List, Optional
 
+SHARED_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+if SHARED_DIR not in sys.path:
+    sys.path.insert(0, SHARED_DIR)
+from output_path import resolve_input_path
+
 VN_TZ = timezone(timedelta(hours=7))
+
 
 # ─────────────────────── CONSTANTS ───────────────────────
 # Phase display names (taskProcess → phase → weight)
@@ -753,12 +759,12 @@ def report_base_name(project_key: str, sprint_name: str) -> str:
 
 
 def next_report_version(output_dir: str, base: str) -> int:
-    """Version tiếp theo - không ghi đè file report cũ (kể cả legacy không _vN)."""
+    """Version tiếp theo - không ghi đè file report cũ (kể cả legacy không _vN hoặc _vN_HHMMSS)."""
     max_v = 0
     legacy_md = os.path.join(output_dir, f"{base}.md")
     if os.path.isfile(legacy_md):
         max_v = max(max_v, 1)
-    pat = re.compile(rf"^{re.escape(base)}_v(\d+)\.md$")
+    pat = re.compile(rf"^{re.escape(base)}_v(\d+)(?:_\d{{6}})?\.(?:md|txt)$", re.IGNORECASE)
     try:
         for name in os.listdir(output_dir):
             m = pat.match(name)
@@ -767,6 +773,7 @@ def next_report_version(output_dir: str, base: str) -> int:
     except OSError:
         pass
     return max_v + 1
+
 
 
 TRAILING_CONNECTORS = {
@@ -910,10 +917,12 @@ def generate_pm_sprint_summary_txt(
     story_map: Dict[str, Dict],
     output_dir: str,
     version: int,
+    hhmmss: Optional[str] = None,
 ) -> str:
     """Tạo file .txt PM Sprint Summary chuẩn 100% (Cấu trúc 3) ngay trong pipeline."""
     base = report_base_name(project_key, sprint_name)
-    txt_name = f"{base}_v{version}.txt"
+    ts = hhmmss or datetime.now(VN_TZ).strftime("%H%M%S")
+    txt_name = f"{base}_v{version}_{ts}.txt"
     txt_path = os.path.join(output_dir, txt_name)
     
     sprint_start_str = fmt_date(analysis.get("sprint_start")) if analysis.get("sprint_start") else ""
@@ -1011,11 +1020,13 @@ def write_report_manifest(
     sprint_name: str,
     version: int,
     today: date,
+    hhmmss: Optional[str] = None,
 ) -> str:
     base = report_base_name(project_key, sprint_name)
     safe_sprint = sprint_name.replace(" ", "_").replace("/", "-")
-    md_name = f"{base}_v{version}.md"
-    txt_name = f"{base}_v{version}.txt"
+    ts = hhmmss or datetime.now(VN_TZ).strftime("%H%M%S")
+    md_name = f"{base}_v{version}_{ts}.md"
+    txt_name = f"{base}_v{version}_{ts}.txt"
     manifest = {
         "version": version,
         "projectKey": project_key,
@@ -1290,7 +1301,8 @@ def generate_report(analysis: Dict, project_key: str, sprint_name: str, output_d
     os.makedirs(output_dir, exist_ok=True)
     base = report_base_name(project_key, sprint_name)
     version = next_report_version(output_dir, base)
-    report_path = os.path.join(output_dir, f"{base}_v{version}.md")
+    hhmmss = datetime.now(VN_TZ).strftime("%H%M%S")
+    report_path = os.path.join(output_dir, f"{base}_v{version}_{hhmmss}.md")
     
     # Replace em dash với hyphen để đảm bảo plain text format nhất quán
     report = report.replace("—", "-")
@@ -1298,14 +1310,14 @@ def generate_report(analysis: Dict, project_key: str, sprint_name: str, output_d
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
 
-    manifest_path = write_report_manifest(output_dir, project_key, sprint_name, version, today)
+    manifest_path = write_report_manifest(output_dir, project_key, sprint_name, version, today, hhmmss=hhmmss)
     txt_path = generate_pm_sprint_summary_txt(
-        analysis, project_key, sprint_name, done_by_parent, doing_items, story_map, output_dir, version
+        analysis, project_key, sprint_name, done_by_parent, doing_items, story_map, output_dir, version, hhmmss=hhmmss
     )
 
     print(f"✅ Đã xuất file báo cáo v{version}: {report_path}")
     print(f"✅ Đã xuất file tóm tắt v{version}: {txt_path}")
-    print(f"✅ Manifest: {manifest_path} (txt: {base}_v{version}.txt)")
+    print(f"✅ Manifest: {manifest_path} (txt: {base}_v{version}_{hhmmss}.txt)")
     return report_path
 
 def main():
@@ -1320,8 +1332,9 @@ def main():
     parser.add_argument("--waterfall", action="store_true", help="Chế độ Waterfall")
     args = parser.parse_args()
     
-    # Load data
-    with open(args.input, "r", encoding="utf-8") as f:
+    # Load data (hỗ trợ resolve_input_path nếu truyền tên file không kèm _vN_HHMMSS)
+    resolved_input = resolve_input_path(args.input, args.output_dir)
+    with open(resolved_input, "r", encoding="utf-8") as f:
         data = json.load(f)
     
     # Detect parameters

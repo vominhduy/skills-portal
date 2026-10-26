@@ -48,22 +48,13 @@ def parse_args():
     return parser.parse_args()
 
 
+from output_path import next_version_number, now_hhmmss
+
+
 def get_next_report_version(output_dir: Path) -> int:
-    """Xác định version tiếp theo cho file story_today_review_vN.json."""
-    if not output_dir.exists():
-        return 1
-    existing = list(output_dir.glob("story_today_review_v*.json"))
-    if not existing:
-        return 1
-    max_v = 0
-    for p in existing:
-        stem = p.stem  # story_today_review_v1
-        try:
-            v_str = stem.split("_v")[-1]
-            max_v = max(max_v, int(v_str))
-        except (ValueError, IndexError):
-            continue
-    return max_v + 1
+    """Xác định version tiếp theo cho file story_today_review_vN_HHMMSS.json."""
+    return next_version_number(output_dir, "story_today_review", extensions=[".json", ".md"])
+
 
 
 def build_jql_candidates(target_date: str, creator: str, project_key: Optional[str] = None) -> List[str]:
@@ -211,10 +202,11 @@ def main():
             "url": f"{client.site}/browse/{key}",
         })
 
-    # 6. Xác định version file
+    # 6. Xác định version file và hậu tố HHMMSS
     version = get_next_report_version(output_dir)
-    json_path = output_dir / f"story_today_review_v{version}.json"
-    md_path = output_dir / f"story_today_review_v{version}.md"
+    hhmmss = now_hhmmss()
+    json_path = output_dir / f"story_today_review_v{version}_{hhmmss}.json"
+    md_path = output_dir / f"story_today_review_v{version}_{hhmmss}.md"
 
     # 7. Ghi file JSON
     payload = {

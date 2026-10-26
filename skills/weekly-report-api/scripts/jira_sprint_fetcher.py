@@ -8,9 +8,7 @@ import sys
 import time
 from typing import Dict, List, Optional
 
-import requests
-
-from network_utils import request_with_proxy_fallback
+from network_utils import request_with_proxy_fallback, requests
 
 JIRA_BASE = os.environ.get("JIRA_SITE", "https://foxproject.atlassian.net").rstrip("/")
 

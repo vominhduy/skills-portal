@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Skills Portal &amp; .env Configurator - Standalone Studio</title>
   <meta name="description" content="Trung tâm quản lý, xem Guideline và cấu hình biến môi trường .env trực quan cho các Skill tự động hóa PM Webapp. Không cần server backend, chạy hoàn toàn offline.">
+  <meta property="og:title" content="Skills Portal &amp; .env Configurator - Standalone Studio">
+  <meta property="og:description" content="Trung tâm quản lý, xem Guideline và cấu hình biến môi trường .env trực quan cho các Skill tự động hóa PM Webapp. Không cần server backend, chạy hoàn toàn offline.">
 
   <!-- Modern Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,6 +43,18 @@
     <div class="nav-actions">
       <div class="badge badge-info" id="totalSkillsBadge">13 Skills</div>
       <div class="badge badge-success" id="configuredEnvCount">0 Biến Đã Cấu Hình</div>
+
+      <button class="btn" id="btnNavChatStudio" title="Chat trực tiếp trên Web để chạy 13 Skills, tra cứu Finbox Live & đồng bộ sang Studio Chat" style="border: 1px solid rgba(59,130,246,0.55); background: linear-gradient(135deg, rgba(59,130,246,0.22), rgba(139,92,246,0.22));">
+        <i class="bi bi-chat-dots-fill" style="color:#60a5fa;"></i>
+        <span>Chat &amp; Chạy Skill</span>
+        <span class="badge badge-info" style="margin-left: 0.2rem; padding: 2px 6px; font-size: 0.7rem;">LIVE</span>
+      </button>
+
+      <button class="btn" id="btnNavOutputs" title="Xem & Tải xuống toàn bộ output của các Skills và Chat" style="border: 1px solid rgba(16,185,129,0.45); background: rgba(16,185,129,0.12);">
+        <i class="bi bi-folder2-open" style="color:#10b981;"></i>
+        <span>Kho Outputs (Skills &amp; Chat)</span>
+        <span class="badge badge-success" id="navOutputsCount" style="margin-left: 0.25rem; padding: 2px 6px; font-size: 0.72rem;">...</span>
+      </button>
 
       <button class="btn" id="btnOpenImportModal" title="Nạp file .env sẵn có từ máy">
         <i class="bi bi-file-earmark-arrow-up"></i>
@@ -156,6 +170,18 @@
           <span>Triggers &amp; Lệnh mẫu</span>
           <span class="tab-count-badge" id="triggerTabCount">0</span>
         </button>
+
+        <button class="tab-btn" data-tab="outputs" id="tabBtnOutputs">
+          <i class="bi bi-collection-play-fill" style="color: #10b981;"></i>
+          <span>Kho Outputs (Skills &amp; Chat)</span>
+          <span class="tab-count-badge" id="outputsTabCount" style="background: #10b981; color: #fff;">...</span>
+        </button>
+
+        <button class="tab-btn" data-tab="chat-studio" id="tabBtnChatStudio">
+          <i class="bi bi-robot" style="color: #60a5fa;"></i>
+          <span>Chat &amp; Chạy Skill (Studio Bridge)</span>
+          <span class="tab-count-badge" style="background: #3b82f6; color: #fff;">AI + Live</span>
+        </button>
       </nav>
 
       <!-- Tab Content Panes -->
@@ -184,6 +210,16 @@
         <!-- Tab 5: Triggers & Cheat Sheet -->
         <div class="tab-pane" id="pane-triggers">
           <div id="triggersContent"></div>
+        </div>
+
+        <!-- Tab 6: Outputs Explorer & Downloads -->
+        <div class="tab-pane" id="pane-outputs">
+          <div id="outputsContent"></div>
+        </div>
+
+        <!-- Tab 7: Web Chat & Skill Runner + Studio Bridge -->
+        <div class="tab-pane" id="pane-chat-studio">
+          <div id="chatStudioContent"></div>
         </div>
 
       </div>
@@ -230,6 +266,84 @@
         <button class="btn btn-close-modal">Hủy bỏ</button>
         <button class="btn btn-primary" id="btnConfirmImport">
           <i class="bi bi-check-lg"></i> Nạp &amp; Áp Dụng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Live Preview Modal (Markdown / Excel / JSON / Text) -->
+  <div class="modal-backdrop" id="outputPreviewModal">
+    <div class="modal-dialog" style="max-width: 1120px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+          <i class="bi bi-file-earmark-richtext-fill" id="previewModalIcon" style="color: #10b981; font-size: 1.3rem;"></i>
+          <div style="min-width: 0;">
+            <h3 id="previewModalTitle" style="margin: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Xem Trước Output</h3>
+            <div id="previewModalSubtitle" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;"></div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <div id="previewModalModeButtons" style="display: flex; gap: 0.35rem;"></div>
+          <button class="btn" id="btnCopyPreviewContent" title="Sao chép nội dung" style="display: none; padding: 5px 10px; font-size: 0.82rem;">
+            <i class="bi bi-clipboard"></i> Copy Nội Dung
+          </button>
+          <a id="btnDownloadPreviewFile" href="#" download class="btn btn-primary" style="background: #10b981; border-color: #10b981; padding: 5px 12px; font-size: 0.82rem; text-decoration: none;">
+            <i class="bi bi-download"></i> Tải Về Máy
+          </a>
+          <button class="btn-close-modal" onclick="SkillsApp.closeOutputPreviewModal()" title="Đóng">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body" id="previewModalBody" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--bg-primary, #0f172a);">
+        <!-- Dynamically rendered preview content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Chat / Skill Output Modal -->
+  <div class="modal-backdrop" id="saveOutputModal">
+    <div class="modal-dialog" style="max-width: 720px; width: 92vw;">
+      <div class="modal-header">
+        <h3><i class="bi bi-file-earmark-plus-fill" style="color: #10b981;"></i> Lưu Nhanh Output Từ Chat / Skill</h3>
+        <button class="btn-close-modal" onclick="SkillsApp.closeSaveOutputModal()" title="Đóng">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Lưu bất kỳ báo cáo Markdown (<code>.md</code>), dữ liệu JSON (<code>.json</code>) hoặc văn bản (<code>.txt</code>) do AI Chat hoặc Skill sinh ra vào thư mục <code>/outputs/</code> để xem và tải xuống bất cứ lúc nào.
+        </p>
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-secondary);">Tên File Output</label>
+            <input type="text" id="saveOutputFilename" class="env-input" placeholder="VD: vn_stock_phan_tich_20261024.md" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-secondary);">Gắn Nhãn Skill / Nguồn</label>
+            <select id="saveOutputSkillPrefix" class="env-input" style="width: 100%; background: var(--bg-elevated); color: var(--text-primary);">
+              <option value="">Tự động nhận diện</option>
+              <option value="vn_stock_">vn-stock-advisor (Chứng khoán VN)</option>
+              <option value="sprint_plan_">sprint-planning (Kế hoạch Sprint)</option>
+              <option value="sprint_report_">pm-sprint-summary (Báo cáo Sprint)</option>
+              <option value="hrm_report_">hrm-weekly-report (Báo cáo HRM)</option>
+              <option value="jira_story_">jira-story-today-reviewer (Jira Story)</option>
+              <option value="jira_subtask_">jira-subtask-reviewer (Jira Subtask)</option>
+              <option value="prd_tc_">prd-testcase-reviewer (PRD &amp; Testcase)</option>
+              <option value="outlook_">outlook-digest (Outlook Digest)</option>
+              <option value="chat_">Chat / AI Output chung</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-secondary);">Nội Dung Output (Markdown / JSON / Text)</label>
+          <textarea id="saveOutputContent" class="raw-env-textarea" style="height: 240px;" placeholder="# Tiêu đề báo cáo...&#10;Dán nội dung báo cáo từ Chat hoặc kết quả chạy Skill vào đây..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="SkillsApp.closeSaveOutputModal()">Hủy bỏ</button>
+        <button class="btn btn-primary" onclick="SkillsApp.submitSaveOutput()" style="background: #10b981; border-color: #10b981;">
+          <i class="bi bi-check2-circle"></i> Lưu Vào Kho Outputs
         </button>
       </div>
     </div>

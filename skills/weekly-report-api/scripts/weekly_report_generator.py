@@ -9,8 +9,14 @@ import os
 from datetime import datetime, timezone, timedelta, date
 from typing import Dict, Optional, List
 
+SHARED_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+if SHARED_DIR not in sys.path:
+    sys.path.insert(0, SHARED_DIR)
+from output_path import format_versioned_filename, now_hhmmss
+
 JIRA_BASE = os.environ.get("JIRA_SITE", "https://foxproject.atlassian.net").rstrip("/")
 VN_TZ = timezone(timedelta(hours=7))
+
 
 # ─────────────────────── CONFIG ───────────────────────
 PROJECT_KEY = "FCR"
@@ -425,8 +431,9 @@ def export_json(analysis: Dict, sprint_start, sprint_end):
         "phaseData": phase_export
     }
     
-    json_path = os.path.join(OUTPUT_DIR, f"{PROJECT_KEY}_{SPRINT_NAME.replace(' ', '_')}_data.json")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    json_name = format_versioned_filename(f"{PROJECT_KEY}_{SPRINT_NAME.replace(' ', '_')}_data.json", OUTPUT_DIR)
+    json_path = os.path.join(OUTPUT_DIR, json_name)
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
     
@@ -566,7 +573,9 @@ def generate_report(analysis: Dict, sprint_start, sprint_end):
 *Công thức: Done / In review = 100% est; In Progress / To Do = spent/est. Actual % = Σ(weight × progress/est)*
 """
     
-    report_path = os.path.join(OUTPUT_DIR, f"{PROJECT_KEY}_{SPRINT_NAME.replace(' ', '_')}_report.md")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    report_name = format_versioned_filename(f"{PROJECT_KEY}_{SPRINT_NAME.replace(' ', '_')}_report.md", OUTPUT_DIR)
+    report_path = os.path.join(OUTPUT_DIR, report_name)
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
     

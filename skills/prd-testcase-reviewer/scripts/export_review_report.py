@@ -29,17 +29,18 @@ except ImportError:
     openpyxl = None
 
 
+SHARED_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+if SHARED_DIR not in sys.path:
+    sys.path.insert(0, SHARED_DIR)
+from output_path import next_version_number, now_hhmmss, resolve_input_path
+
+
 def get_next_version_filename(directory: str, base_name: str, ext: str) -> str:
-    """Tìm số version kế tiếp chưa tồn tại trong thư mục output (_v1, _v2...)."""
-    pattern = re.compile(rf"^{re.escape(base_name)}_v(\d+)\.{re.escape(ext)}$", re.IGNORECASE)
-    highest = 0
-    if os.path.exists(directory):
-        for fname in os.listdir(directory):
-            m = pattern.match(fname)
-            if m:
-                highest = max(highest, int(m.group(1)))
-    v_next = highest + 1
-    return f"{base_name}_v{v_next}.{ext}"
+    """Tìm số version kế tiếp kèm hậu tố HHMMSS (_v1_HHMMSS, _v2_HHMMSS...)."""
+    v_next = next_version_number(directory, base_name, extensions=[".xlsx", ".md", f".{ext.lstrip('.')}"])
+    hhmmss = now_hhmmss()
+    return f"{base_name}_v{v_next}_{hhmmss}.{ext.lstrip('.')}"
+
 
 
 def create_excel_report(review_data: Dict[str, Any], output_path: str):
@@ -400,6 +401,14 @@ def create_excel_report(review_data: Dict[str, Any], output_path: str):
         wb.remove(default_sheet)
 
     wb.save(output_path)
+    try:
+        _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+        if _shared_dir not in sys.path:
+            sys.path.insert(0, _shared_dir)
+        from xlsx_normalizer import normalize_xlsx_file
+        normalize_xlsx_file(output_path)
+    except Exception as norm_err:
+        print(f"[export_review_report] Warning normalizing OpenXML: {norm_err}", file=sys.stderr)
     print(f"[export_review_report] Đã tạo thành công file Excel 3 sheet tại: {output_path}")
 
 
@@ -503,7 +512,8 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    with open(args.review_json, "r", encoding="utf-8") as f:
+    resolved_review_json = resolve_input_path(args.review_json, args.output_dir)
+    with open(resolved_review_json, "r", encoding="utf-8") as f:
         review_data = json.load(f)
 
     excel_file = get_next_version_filename(args.output_dir, args.output_name, "xlsx")

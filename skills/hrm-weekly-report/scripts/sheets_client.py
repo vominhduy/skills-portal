@@ -596,7 +596,15 @@ def _update_excel_zip_preserving(orig_bytes: bytes, sheet_name: str, row_updates
 
     zout.close()
     zin.close()
-    return zout_buf.getvalue()
+    raw_out = zout_buf.getvalue()
+    try:
+        _shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
+        if _shared_dir not in sys.path:
+            sys.path.insert(0, _shared_dir)
+        from xlsx_normalizer import normalize_xlsx_bytes
+        return normalize_xlsx_bytes(raw_out)
+    except Exception:
+        return raw_out
 
 
 def _normalize_name_key(s: Any) -> str:

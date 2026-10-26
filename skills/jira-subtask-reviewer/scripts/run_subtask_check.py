@@ -26,6 +26,7 @@ try:
     from jira_client import JiraClient, escape_jql_string  # type: ignore
     from date_util import parse_date, to_iso, to_dmy  # type: ignore
     from agile_status import is_in_review  # type: ignore
+    from output_path import next_version_number, now_hhmmss  # type: ignore
 except ImportError as e:
     print(f"[ERROR] Không thể nạp module shared: {e}", file=sys.stderr)
     sys.exit(1)
@@ -40,14 +41,13 @@ def get_current_week_bounds() -> tuple[str, str]:
     return str(monday), str(friday)
 
 
-def get_next_version_path(output_dir: Path, base_name: str, ext: str) -> tuple[Path, int]:
-    """Tìm version tiếp theo (_v1, _v2, ...) cho file output để tránh ghi đè theo chuẩn guardrails."""
-    v = 1
-    while True:
-        target = output_dir / f"{base_name}_v{v}.{ext.lstrip('.')}"
-        if not target.exists():
-            return target, v
-        v += 1
+def get_next_version_path(output_dir: Path, base_name: str, ext: str, version: Optional[int] = None, hhmmss: Optional[str] = None) -> tuple[Path, int]:
+    """Tìm version tiếp theo (_v1_HHMMSS, _v2_HHMMSS, ...) cho file output để tránh ghi đè theo chuẩn guardrails."""
+    v = version if version is not None else next_version_number(output_dir, base_name, extensions=[".json", ".md"])
+    ts = hhmmss or now_hhmmss()
+    target = output_dir / f"{base_name}_v{v}_{ts}.{ext.lstrip('.')}"
+    return target, v
+
 
 
 def parse_jira_hours(seconds: Optional[int | float]) -> float:
@@ -278,9 +278,10 @@ def main() -> None:
     print(f"[*] Số sub-task khớp 100% (Est == Spent, Đủ điều kiện đánh Done): {len(done_eligible_subtasks)}")
     print(f"[*] Số sub-task lệch giờ (Est != Spent, Cần Highlight): {len(discrepancy_subtasks)}")
 
-    # 5. Xuất file kết quả JSON & Markdown
-    json_path, version = get_next_version_path(out_dir, "subtask_review", "json")
-    md_path, _ = get_next_version_path(out_dir, "subtask_review", "md")
+    # 5. Xuất file kết quả JSON & Markdown (cùng version và HHMMSS)
+    hhmmss = now_hhmmss()
+    json_path, version = get_next_version_path(out_dir, "subtask_review", "json", hhmmss=hhmmss)
+    md_path, _ = get_next_version_path(out_dir, "subtask_review", "md", version=version, hhmmss=hhmmss)
 
     total_est_hours = parse_jira_hours(total_est_seconds)
     total_spent_hours = parse_jira_hours(total_spent_seconds)
