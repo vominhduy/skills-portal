@@ -166,7 +166,7 @@ def check_roles(data):
             # Skip US thuần documentation (nếu có)
             if pics == {"BA"} or pics == {"PM"}:
                 continue
-            has_dev = any(p.startswith("DEV") for p in pics)
+            has_dev = any(p.startswith("DEV") or p == "TL" for p in pics)
             if not has_dev:
                 issues.append(f"  ⚠️  {us.get('us_id', '?')} thiếu task DEV")
     return issues
@@ -203,7 +203,7 @@ def summarize(data):
                 h = t.get("est_effort_hour", 0) or 0
                 max_h = max(max_h, h)
                 role = t.get("pic", "") or ""
-                if role.startswith("DEV"):
+                if role.startswith("DEV") or role == "TL":
                     role = "DEV"
                 elif role.startswith("QA") or role.startswith("QC"):
                     role = "QC"

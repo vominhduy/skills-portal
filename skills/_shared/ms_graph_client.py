@@ -29,7 +29,67 @@ except ImportError:
 try:
     import requests
 except ImportError:
-    requests = None
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    class _StdlibResponse:
+        def __init__(self, status_code: int, content: bytes, headers: dict):
+            self.status_code = status_code
+            self.content = content
+            self.headers = headers
+            self.ok = 200 <= status_code < 300
+
+        @property
+        def text(self) -> str:
+            return self.content.decode("utf-8", errors="replace")
+
+        def json(self) -> Any:
+            return json.loads(self.text)
+
+    class _StdlibRequests:
+        @staticmethod
+        def _req(method: str, url: str, headers: Optional[ dict ] = None, params: Optional[ dict ] = None, data: Any = None, json_body: Any = None, timeout: int = 30) -> _StdlibResponse:
+            full_url = url
+            if params:
+                qs = urllib.parse.urlencode(params)
+                full_url = f"{url}{'&' if '?' in url else '?'}{qs}"
+            req_headers = dict(headers or {})
+            body_bytes = None
+            if json_body is not None:
+                body_bytes = json.dumps(json_body).encode("utf-8")
+                req_headers.setdefault("Content-Type", "application/json")
+            elif isinstance(data, dict):
+                body_bytes = urllib.parse.urlencode(data).encode("utf-8")
+                req_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+            elif isinstance(data, bytes):
+                body_bytes = data
+            elif isinstance(data, str):
+                body_bytes = data.encode("utf-8")
+            req = urllib.request.Request(full_url, data=body_bytes, headers=req_headers, method=method)
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return _StdlibResponse(resp.status, resp.read(), dict(resp.headers))
+            except urllib.error.HTTPError as e:
+                return _StdlibResponse(e.code, e.read(), dict(e.headers) if e.headers else {})
+
+        @classmethod
+        def get(cls, url: str, **kwargs: Any) -> _StdlibResponse:
+            return cls._req("GET", url, headers=kwargs.get("headers"), params=kwargs.get("params"), timeout=kwargs.get("timeout", 30))
+
+        @classmethod
+        def post(cls, url: str, **kwargs: Any) -> _StdlibResponse:
+            return cls._req("POST", url, headers=kwargs.get("headers"), params=kwargs.get("params"), data=kwargs.get("data"), json_body=kwargs.get("json"), timeout=kwargs.get("timeout", 30))
+
+        @classmethod
+        def put(cls, url: str, **kwargs: Any) -> _StdlibResponse:
+            return cls._req("PUT", url, headers=kwargs.get("headers"), params=kwargs.get("params"), data=kwargs.get("data"), json_body=kwargs.get("json"), timeout=kwargs.get("timeout", 30))
+
+        @classmethod
+        def patch(cls, url: str, **kwargs: Any) -> _StdlibResponse:
+            return cls._req("PATCH", url, headers=kwargs.get("headers"), params=kwargs.get("params"), data=kwargs.get("data"), json_body=kwargs.get("json"), timeout=kwargs.get("timeout", 30))
+
+    requests = _StdlibRequests()  # type: ignore
 
 try:
     import openpyxl
@@ -44,9 +104,13 @@ _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 CACHE_SEARCH_PATHS = [
     os.environ.get("MS_GRAPH_CACHE_FILE"),
+    os.path.join(_ROOT_DIR, "data", "token_cache.json"),
     os.path.join(_ROOT_DIR, "data", "token_cache.bin"),
+    "/app/data/token_cache.json",
     "/app/data/token_cache.bin",
+    os.path.join(os.getcwd(), "data", "token_cache.json"),
     os.path.join(os.getcwd(), "data", "token_cache.bin"),
+    "token_cache.json",
     "token_cache.bin",
     os.path.expanduser("~/.cache/msal/token_cache.bin"),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "token_cache.bin"),
@@ -58,18 +122,18 @@ def get_cache_file_path(prefer_write_path: bool = False) -> str:
     data_dir = os.path.join(_ROOT_DIR, "data")
     if prefer_write_path:
         if os.path.isdir(data_dir):
-            return os.path.join(data_dir, "token_cache.bin")
+            return os.path.join(data_dir, "token_cache.json")
         if os.path.isdir("/app/data"):
-            return "/app/data/token_cache.bin"
+            return "/app/data/token_cache.json"
 
     for p in CACHE_SEARCH_PATHS:
         if p and os.path.isfile(p):
             return os.path.abspath(p)
 
     if os.path.isdir(data_dir):
-        return os.path.join(data_dir, "token_cache.bin")
+        return os.path.join(data_dir, "token_cache.json")
     if os.path.isdir("/app/data"):
-        return "/app/data/token_cache.bin"
+        return "/app/data/token_cache.json"
 
     target = os.path.expanduser("~/.cache/msal/token_cache.bin")
     os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -91,34 +155,87 @@ def get_ms_graph_token(
     auth = authority or os.environ.get("MS_GRAPH_AUTHORITY") or AUTHORITY_DEFAULT
     cpath = cache_file or get_cache_file_path()
 
-    if msal is not None and cpath and os.path.isfile(cpath):
+    if cpath and os.path.isfile(cpath):
+        if msal is not None:
+            try:
+                cache = msal.SerializableTokenCache()
+                with open(cpath, "r", encoding="utf-8") as f:
+                    cache.deserialize(f.read())
+
+                app = msal.PublicClientApplication(cid, authority=auth, token_cache=cache)
+                accounts = app.get_accounts()
+
+                if accounts:
+                    result = app.acquire_token_silent(scopes, account=accounts[0])
+                    if not result and scopes:
+                        for s in scopes:
+                            r_single = app.acquire_token_silent([s], account=accounts[0])
+                            if r_single and "access_token" in r_single:
+                                result = r_single
+                                break
+
+                    if result and "access_token" in result:
+                        if cache.has_state_changed:
+                            try:
+                                with open(cpath, "w", encoding="utf-8") as f:
+                                    f.write(cache.serialize())
+                            except Exception:
+                                pass
+                        return result["access_token"]
+            except Exception as e:
+                print(f"[MS Graph] Cảnh báo đọc MSAL token cache: {e}", file=sys.stderr)
+
+        # Fallback đọc trực tiếp JSON từ token_cache.bin (hỗ trợ cả khi không cài msal)
         try:
-            cache = msal.SerializableTokenCache()
             with open(cpath, "r", encoding="utf-8") as f:
-                cache.deserialize(f.read())
-
-            app = msal.PublicClientApplication(cid, authority=auth, token_cache=cache)
-            accounts = app.get_accounts()
-
-            if accounts:
-                result = app.acquire_token_silent(scopes, account=accounts[0])
-                if not result and scopes:
-                    for s in scopes:
-                        r_single = app.acquire_token_silent([s], account=accounts[0])
-                        if r_single and "access_token" in r_single:
-                            result = r_single
-                            break
-
-                if result and "access_token" in result:
-                    if cache.has_state_changed:
-                        try:
-                            with open(cpath, "w", encoding="utf-8") as f:
-                                f.write(cache.serialize())
-                        except Exception:
-                            pass
-                    return result["access_token"]
-        except Exception as e:
-            print(f"[MS Graph] Cảnh báo đọc token cache: {e}", file=sys.stderr)
+                raw_cache = json.load(f)
+            acc_map = raw_cache.get("AccessToken") or {}
+            now_ts = int(time.time())
+            for _, tok_entry in acc_map.items():
+                secret = tok_entry.get("secret")
+                exp = int(tok_entry.get("expires_on") or 0)
+                if secret and (not exp or exp > now_ts + 60) and not force_cache:
+                    return secret
+            ref_map = raw_cache.get("RefreshToken") or {}
+            for _, ref_entry in ref_map.items():
+                ref_secret = ref_entry.get("secret")
+                if ref_secret and requests is not None:
+                    token_url = f"{auth.rstrip('/')}/oauth2/v2.0/token"
+                    resp = requests.post(
+                        token_url,
+                        data={
+                            "client_id": cid,
+                            "grant_type": "refresh_token",
+                            "refresh_token": ref_secret,
+                            "scope": " ".join(scopes),
+                        },
+                        timeout=20,
+                    )
+                    if resp.ok and "access_token" in resp.json():
+                        tdata = resp.json()
+                        new_tok = tdata["access_token"]
+                        raw_cache["AccessToken"] = {
+                            "default": {
+                                "secret": new_tok,
+                                "expires_on": str(now_ts + int(tdata.get("expires_in", 3600))),
+                            }
+                        }
+                        if tdata.get("refresh_token"):
+                            raw_cache["RefreshToken"] = {"default": {"secret": tdata["refresh_token"]}}
+                        data_dir = os.path.join(_ROOT_DIR, "data")
+                        write_targets = {cpath}
+                        if os.path.isdir(data_dir):
+                            write_targets.add(os.path.join(data_dir, "token_cache.json"))
+                            write_targets.add(os.path.join(data_dir, "token_cache.bin"))
+                        for wp in write_targets:
+                            try:
+                                with open(wp, "w", encoding="utf-8") as wf:
+                                    json.dump(raw_cache, wf, ensure_ascii=False, indent=2)
+                            except Exception:
+                                pass
+                        return new_tok
+        except Exception:
+            pass
 
     if not force_cache:
         env_token = (
@@ -430,17 +547,44 @@ def update_worksheet_range(
     raise RuntimeError(f"Lỗi cập nhật range '{range_address}' ({status}): {err_text}")
 
 
+def get_current_user_profile(token: Optional[str] = None) -> Dict[str, Any]:
+    headers = get_auth_headers(token=token, scopes=["User.Read", "Mail.Read"])
+    res = requests.get(
+        f"{GRAPH_BASE}/me?$select=id,displayName,mail,userPrincipalName,otherMails",
+        headers=headers,
+        timeout=20,
+    )
+    if res.ok:
+        return res.json()
+    return {}
+
+
 def get_outlook_messages(
     top: int = 30,
     query: Optional[str] = None,
     unread_only: bool = False,
+    direct_only: bool = False,
     token: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     headers = get_auth_headers(token=token, scopes=["User.Read", "Mail.Read"])
     headers["Prefer"] = 'outlook.body-content-type="text"'
 
+    me_addrs: set[str] = set()
+    me_name: str = ""
+    if direct_only:
+        me_info = get_current_user_profile(token=token)
+        for k in ("mail", "userPrincipalName"):
+            val = (me_info.get(k) or "").strip().lower()
+            if val:
+                me_addrs.add(val)
+        for om in me_info.get("otherMails") or []:
+            if om and str(om).strip():
+                me_addrs.add(str(om).strip().lower())
+        me_name = (me_info.get("displayName") or "").strip().lower()
+
+    fetch_batch = 100 if (direct_only or unread_only) else min(max(top, 1), 100)
     params: Dict[str, str] = {
-        "$top": str(min(top, 100)),
+        "$top": str(fetch_batch),
         "$select": "id,conversationId,receivedDateTime,from,toRecipients,ccRecipients,subject,bodyPreview,body,hasAttachments,isRead",
     }
     if unread_only:
@@ -448,7 +592,7 @@ def get_outlook_messages(
 
     if query and query.strip():
         params["$search"] = f'"{query.strip()}"'
-    else:
+    elif not unread_only:
         params["$orderby"] = "receivedDateTime desc"
 
     url = f"{GRAPH_BASE}/me/mailFolders/Inbox/messages"
@@ -470,7 +614,84 @@ def get_outlook_messages(
         if not res.ok:
             raise RuntimeError(f"Lỗi đọc email qua Microsoft Graph ({res.status_code}): {res.text}")
 
-    return res.json().get("value", [])
+    data_json = res.json()
+    items = list(data_json.get("value", []))
+    next_link = data_json.get("@odata.nextLink")
+
+    def _is_me_recipient(r: Dict[str, Any]) -> bool:
+        ea = r.get("emailAddress") or {}
+        addr = (ea.get("address") or "").strip().lower()
+        name = (ea.get("name") or "").strip().lower()
+        if addr and addr in me_addrs:
+            return True
+        for ma in me_addrs:
+            local_part = ma.split("@")[0]
+            if local_part and addr and addr.startswith(local_part + "@"):
+                return True
+        if me_name and name and me_name == name:
+            return True
+        return False
+
+    def _classify_direct(m: Dict[str, Any]) -> Optional[str]:
+        to_list = m.get("toRecipients") or []
+        cc_list = m.get("ccRecipients") or []
+        if not me_addrs and not me_name:
+            # Fallback if /me profile empty: check if single To recipient
+            if len(to_list) == 1 and len(cc_list) == 0:
+                return "only_me_no_cc"
+            if len(to_list) == 1:
+                return "only_me_in_to"
+            return "in_to" if to_list else None
+        me_in_to = any(_is_me_recipient(r) for r in to_list)
+        if not me_in_to:
+            return None
+        if len(to_list) == 1 and len(cc_list) == 0:
+            return "only_me_no_cc"
+        if len(to_list) == 1:
+            return "only_me_in_to"
+        return "in_to"
+
+    # Follow pagination if direct_only needs more items to find enough direct messages
+    max_pages = 25 if direct_only else 1
+    page_count = 1
+    while direct_only and next_link and page_count < max_pages:
+        strict_Now = [m for m in items if (not unread_only or not m.get("isRead", False)) and _classify_direct(m) in ("only_me_no_cc", "only_me_in_to")]
+        if len(strict_Now) >= top:
+            break
+        res_next = requests.get(next_link, headers=headers, timeout=30)
+        if not res_next.ok:
+            break
+        nj = res_next.json()
+        items.extend(nj.get("value", []))
+        next_link = nj.get("@odata.nextLink")
+        page_count += 1
+
+    if unread_only:
+        items = [m for m in items if not m.get("isRead", False)]
+
+    items.sort(key=lambda m: m.get("receivedDateTime") or "", reverse=True)
+
+    if direct_only:
+        tier1: List[Dict[str, Any]] = []  # only_me_no_cc
+        tier2: List[Dict[str, Any]] = []  # only_me_in_to
+        tier3: List[Dict[str, Any]] = []  # in_to
+        for m in items:
+            dtype = _classify_direct(m)
+            if not dtype:
+                continue
+            m_copy = dict(m)
+            m_copy["_direct_type"] = dtype
+            if dtype == "only_me_no_cc":
+                tier1.append(m_copy)
+            elif dtype == "only_me_in_to":
+                tier2.append(m_copy)
+            else:
+                tier3.append(m_copy)
+        # Prioritize strictly private (only me in To, no CC), then sole To, then in To
+        combined = tier1 + tier2 + tier3
+        return combined[:top]
+
+    return items[:top]
 
 
 def get_outlook_message_body(message_id: str, token: Optional[str] = None) -> Optional[str]:

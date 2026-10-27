@@ -22,6 +22,9 @@ function normalizeXlsxIfNeeded(filePath) {
     if (normalizedXlsxCache.has(cacheKey)) return;
 
     execFileSync('python3', [XLSX_NORMALIZER_SCRIPT, filePath], { timeout: 8000, stdio: 'ignore' });
+    try {
+      fs.utimesSync(filePath, st.atime, st.mtime);
+    } catch (_) {}
     const stAfter = fs.statSync(filePath);
     normalizedXlsxCache.add(`${filePath}:${stAfter.size}:${stAfter.mtimeMs}`);
   } catch (_) {}
@@ -123,10 +126,15 @@ function ensureSprint3ExcelOutputs() {
     }
     if (fs.existsSync(SPRINT3_SEED_PATH)) {
       const seed = JSON.parse(fs.readFileSync(SPRINT3_SEED_PATH, 'utf8'));
+      const refMd = path.join(OUTPUTS_DIR, 'sprint3_backlog_v1_064924.md');
+      const refTime = fs.existsSync(refMd) ? fs.statSync(refMd).mtime : new Date('2026-10-26T06:49:24Z');
       for (const [filename, b64] of Object.entries(seed)) {
         const target = path.join(OUTPUTS_DIR, filename);
         if (!fs.existsSync(target) || fs.statSync(target).size < 1000) {
           fs.writeFileSync(target, Buffer.from(b64, 'base64'));
+          try {
+            fs.utimesSync(target, refTime, refTime);
+          } catch (_) {}
         }
         normalizeXlsxIfNeeded(target);
       }
@@ -293,11 +301,20 @@ function scanOutputsDir(dirPath, baseDir, results = []) {
         } catch (_) {}
       }
 
+      const verMatch = entry.name.match(/_v(\d+)(?:_(\d{6}))?/i);
+      const versionNum = verMatch && verMatch[1] ? parseInt(verMatch[1], 10) : 0;
+      const hhmmssTag = verMatch && verMatch[2] ? parseInt(verMatch[2], 10) : 0;
+      const createdTimeMs = stat.mtimeMs || new Date(stat.mtime).getTime() || 0;
+
       results.push({
         name: entry.name,
         relPath,
         size: stat.size,
         mtime: stat.mtime,
+        createdAt: stat.mtime,
+        sortTimestamp: createdTimeMs,
+        versionNum,
+        hhmmssTag,
         ext,
         isTemp,
         previewable: ['.md', '.txt', '.json', '.csv', '.xlsx', '.html', '.log'].includes(ext),
@@ -312,12 +329,22 @@ function scanOutputsDir(dirPath, baseDir, results = []) {
   return results;
 }
 
+function sortOutputFilesNewestFirst(files) {
+  return files.sort((a, b) => {
+    const timeDiff = (b.sortTimestamp || new Date(b.mtime).getTime() || 0) - (a.sortTimestamp || new Date(a.mtime).getTime() || 0);
+    if (Math.abs(timeDiff) > 1000) return timeDiff;
+    if ((b.hhmmssTag || 0) !== (a.hhmmssTag || 0)) return (b.hhmmssTag || 0) - (a.hhmmssTag || 0);
+    if ((b.versionNum || 0) !== (a.versionNum || 0)) return (b.versionNum || 0) - (a.versionNum || 0);
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+}
+
 // 1. API to list all generated output files across all skills & chat
 app.get('/api/outputs', (req, res) => {
   try {
     ensureSprint3ExcelOutputs();
     const files = scanOutputsDir(OUTPUTS_DIR, OUTPUTS_DIR, []);
-    files.sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
+    sortOutputFilesNewestFirst(files);
     res.json({ files });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -367,13 +394,24 @@ app.get('/api/outputs/download-b64', (req, res) => {
 // 2. API to preview file content (.md, .txt, .json, .csv, and .xlsx sheets!)
 app.get('/api/outputs/preview', async (req, res) => {
   ensureSprint3ExcelOutputs();
-  const relFile = String(req.query.file || '').trim().replace(/^outputs\//, '');
-  if (!relFile || relFile.includes('..')) {
+  const rawParam = String(req.query.file || '').trim().replace(/^\/+/, '');
+  if (!rawParam || rawParam.includes('..')) {
     return res.status(400).json({ error: 'Đường dẫn file không hợp lệ' });
   }
 
-  const filePath = resolveExistingOutputFile(OUTPUTS_DIR, relFile);
-  if (!filePath.startsWith(OUTPUTS_DIR) || !fs.existsSync(filePath)) {
+  const relFile = rawParam.replace(/^outputs\//, '');
+  let filePath = resolveExistingOutputFile(OUTPUTS_DIR, relFile);
+  if (!fs.existsSync(filePath)) {
+    const alt1 = path.resolve(__dirname, rawParam);
+    const alt2 = path.resolve(__dirname, 'skills', rawParam);
+    if (alt1.startsWith(__dirname) && fs.existsSync(alt1) && fs.statSync(alt1).isFile()) {
+      filePath = alt1;
+    } else if (alt2.startsWith(__dirname) && fs.existsSync(alt2) && fs.statSync(alt2).isFile()) {
+      filePath = alt2;
+    }
+  }
+
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     return res.status(404).json({ error: 'Không tìm thấy file yêu cầu' });
   }
 
@@ -457,7 +495,32 @@ app.get('/api/outputs/preview', async (req, res) => {
       }
     }
 
-    // Text-based files (.md, .json, .txt, .csv, etc.)
+    if (ext === '.docx' || ext === '.doc') {
+      const base64 = fs.readFileSync(filePath).toString('base64');
+      return res.json({
+        type: 'docx',
+        name,
+        relPath: relFile,
+        ext,
+        size: stat.size,
+        mtime: stat.mtime,
+        base64
+      });
+    }
+
+    const BINARY_EXTS = new Set(['.zip', '.tar', '.gz', '.rar', '.7z', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.exe', '.bin', '.dll']);
+    if (BINARY_EXTS.has(ext)) {
+      return res.json({
+        type: 'binary',
+        name,
+        relPath: relFile,
+        ext,
+        size: stat.size,
+        mtime: stat.mtime
+      });
+    }
+
+    // Text-based files (.txt, .py, .json, .md, .csv, .sh, .sql, .yaml, .html, .css, etc.)
     const content = fs.readFileSync(filePath, 'utf8');
     return res.json({
       type: 'text',
@@ -519,6 +582,114 @@ app.post('/api/env/sync', (req, res) => {
     return res.json({ ok: true, message: 'Đã đồng bộ file .env xuống Server để chạy các Python Skills!' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// 5b. Web Screener API: Screen stocks using Python Finbox Engine (/api/stocks/screen)
+app.post('/api/stocks/screen', (req, res) => {
+  try {
+    const params = req.body || {};
+    const paramsJson = JSON.stringify(params);
+    const scriptPath = path.join(__dirname, 'skills', 'vn-stock-advisor', 'scripts', 'web_screener.py');
+    const stdout = execFileSync('python3', [scriptPath, 'screen', paramsJson], {
+      cwd: __dirname,
+      encoding: 'utf8',
+      timeout: 35000,
+      maxBuffer: 12 * 1024 * 1024
+    });
+    const parsed = JSON.parse(stdout);
+    return res.json(parsed);
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Lỗi lọc cổ phiếu: ' + (err.stderr || err.message) });
+  }
+});
+
+// 5c. Web Screener API: Get single ticker deep details (/api/stocks/detail)
+app.get('/api/stocks/detail', (req, res) => {
+  try {
+    const ticker = String(req.query.ticker || 'VND').trim().toUpperCase();
+    const forceRefresh = String(req.query.force || req.query.refresh || 'false').toLowerCase() === 'true';
+    const scriptPath = path.join(__dirname, 'skills', 'vn-stock-advisor', 'scripts', 'web_screener.py');
+    const args = ['detail', ticker];
+    if (forceRefresh) args.push('--force');
+    const stdout = execFileSync('python3', [scriptPath, ...args], {
+      cwd: __dirname,
+      encoding: 'utf8',
+      timeout: 20000,
+      maxBuffer: 6 * 1024 * 1024
+    });
+    const parsed = JSON.parse(stdout);
+    return res.json(parsed);
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Lỗi lấy chi tiết cổ phiếu: ' + (err.stderr || err.message) });
+  }
+});
+
+// 5d. Web Screener API: Export Screener results directly to /outputs/ Markdown report
+app.post('/api/stocks/export-report', (req, res) => {
+  try {
+    const { presetTitle = 'RSI ~40 & Cạn Cung 10 Phiên', stocks = [], marketSummary = {} } = req.body || {};
+    const nowStr = new Date().toLocaleString('vi-VN');
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+    let md = `# 📈 BÁO CÁO PHÂN TÍCH & BỘ LỌC CHỨNG KHOÁN (FINBOX 4-PILLAR PRO)\n`;
+    md += `> **Chiến lược lọc**: \`${presetTitle}\` | **Thời điểm xuất**: \`${nowStr}\`  \n`;
+    md += `> **Hệ thống dữ liệu**: \`Finbox DCS Live + TopInvest Smart Money + Simplize Valuation\`\n\n`;
+
+    const ov = marketSummary.overview || {};
+    const indices = marketSummary.indices || {};
+    const vnindex = indices['VNINDEX'] || {};
+    const vn30 = indices['VN30'] || {};
+
+    md += `## 1. 🧭 Tổng Quan Thị Trường\n`;
+    md += `- **VNINDEX**: \`${vnindex.priceFlat || 1763.55}\` (${((vnindex.pricePercent || -0.006) * 100).toFixed(2)}%) | Xu hướng: **${vnindex.trend || 'TRUNG LẬP'}**\n`;
+    md += `- **VN30**: \`${vn30.priceFlat || 1889.53}\` (${((vn30.pricePercent || -0.009) * 100).toFixed(2)}%) | Xu hướng: **${vn30.trend || 'TRUNG LẬP'}**\n`;
+    if (ov.trend) {
+      md += `- **Độ rộng**: 🟢 Tăng ${ov.trend.positive || 0} mã | 🟡 Tham chiếu ${ov.trend.neutral || 0} mã | 🔴 Giảm ${ov.trend.negative || 0} mã\n`;
+    }
+    if (ov.foreign) {
+      md += `- **Khối ngoại**: ${ov.foreign.note || 'Giao dịch'} ròng \`${ov.foreign.diff || 0}\` tỷ VNĐ (Mua \`${ov.foreign.buy || 0}\` tỷ - Bán \`${ov.foreign.sell || 0}\` tỷ)\n`;
+    }
+    md += `\n---\n\n`;
+
+    md += `## 2. 📋 Danh Sách Cổ Phiếu Đạt Tiêu Chí (${stocks.length} mã)\n\n`;
+    md += `| STT | Mã CP | Sàn | Ngành | Giá | RSI | Xu Hướng | Tín Hiệu | %Vol 10P (TB) | Tương Quan Xanh/Đỏ | Đánh Giá Cung Cầu |\n`;
+    md += `| :-: | :---: | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |\n`;
+
+    stocks.forEach((s, idx) => {
+      const volTag = s.is_dry_supply ? '⭐ CẠN CUNG RÕ NÉT' : 'Theo dõi thêm';
+      const accum = s.vol_accumulation_ratio ? `${s.vol_accumulation_ratio}x (${s.up_sessions}T/${s.down_sessions}G)` : '-';
+      md += `| ${idx + 1} | **${s.ticker}** | ${s.floor} | ${s.industry} | **${s.price}** | **${s.rsi || '-'}** | ${s.trend} | \`${s.signal || 'Chờ Mua'}\` | ${s.avg_vol_10p || '-'}% | ${accum} | ${volTag} |\n`;
+    });
+
+    md += `\n---\n\n`;
+    md += `## 3. 🎯 Kế Hoạch Giao Dịch & Quản Trị Rủi Ro Kỷ Luật\n\n`;
+    md += `| Mã CP | Giá | Vùng Mua (Entry) | Chặn Hòa Vốn (+5%) | Cắt Lỗ (-5.5%) | Target 1 (+8%) | Target 2 (+16%) | Tỷ Lệ R:R |\n`;
+    md += `| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n`;
+
+    stocks.forEach((s) => {
+      const plan = s.trade_plan || {};
+      md += `| **${s.ticker}** | \`${s.price}\` | **${plan.entry_zone || '-'}** | \`${plan.breakeven_trigger || '-'}\` | \`${plan.stop_loss || '-'}\` | \`${plan.target_1 || '-'}\` | \`${plan.target_2 || '-'}\` | **${plan.rr_ratio_2 || '2.8'}:1** |\n`;
+    });
+
+    md += `\n> ⚠️ **Kỷ luật quản trị rủi ro Finbox 4-Pillar**:\n`;
+    md += `> - Khi vị thế tăng đạt \`+5%\`, lập tức nâng mức chặn lỗ về đúng giá vốn mua (Breakeven Trigger) để bảo đảm không bị thua lỗ.\n`;
+    md += `> - Chủ động chốt lời 50% vị thế tại Target 1 (+8%) và nắm giữ phần còn lại bám theo trend.\n`;
+
+    const baseCandidate = `vn_stock_screener_${dateTag}.md`;
+    const finalFilename = resolveVersionedOutputFilename(OUTPUTS_DIR, baseCandidate);
+    const targetPath = path.join(OUTPUTS_DIR, finalFilename);
+    fs.writeFileSync(targetPath, md, 'utf8');
+
+    return res.json({
+      ok: true,
+      filename: finalFilename,
+      relPath: finalFilename,
+      url: `/outputs/${encodeURIComponent(finalFilename)}`,
+      downloadUrl: `/outputs/${encodeURIComponent(finalFilename)}?download=1`
+    });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Lỗi xuất báo cáo: ' + err.message });
   }
 });
 

@@ -132,14 +132,14 @@ class ProxiedIMAP4_SSL(imaplib.IMAP4):
 
 # ── 1. Microsoft Graph API Provider (Kế thừa /outlook_mail.py) ──
 
-def _fetch_graph_messages(query: str, max_results: int = 15) -> Tuple[bool, List[Dict[str, Any]], str]:
+def _fetch_graph_messages(query: str, max_results: int = 15, unread_only: bool = False, direct_only: bool = False) -> Tuple[bool, List[Dict[str, Any]], str]:
     """Lấy danh sách email qua Microsoft Graph API ."""
     if mg is None:
         return False, [], "Không tìm thấy module ms_graph_client"
 
     try:
         # Gọi trực tiếp qua mg.get_outlook_messages (đã tích hợp MSAL cache, silent acquire, và tự động phục hồi khi lỗi 401/403)
-        items = mg.get_outlook_messages(top=max_results, query=query)
+        items = mg.get_outlook_messages(top=max_results, query=query, unread_only=unread_only, direct_only=direct_only)
         out: List[Dict[str, Any]] = []
 
         for item in items:
@@ -184,10 +184,12 @@ def _fetch_graph_messages(query: str, max_results: int = 15) -> Tuple[bool, List
                 "from": from_str,
                 "to": to_str,
                 "cc": cc_str,
+                "direct_type": item.get("_direct_type") or "",
                 "subject": subject,
                 "snippet": snippet,
                 "body": clean_body or snippet,
                 "has_attachments": bool(item.get("hasAttachments")),
+                "is_read": bool(item.get("isRead", False)),
             })
 
         print(f"[+] Lấy thành công {len(out)} email qua Microsoft Graph API.")
@@ -326,13 +328,13 @@ def _fetch_imap_messages(query: str, max_results: int = 15) -> Tuple[bool, List[
         return False, [], f"Lỗi truy vấn IMAP Outlook: {err_msg}"
 
 
-def fetch_messages(query: str = "", max_results: int = 15) -> List[Dict[str, Any]]:
+def fetch_messages(query: str = "", max_results: int = 15, unread_only: bool = False, direct_only: bool = False) -> List[Dict[str, Any]]:
     """Lấy danh sách email từ Outlook:
     1. Ưu tiên Microsoft Graph API (MSAL Device Flow / token cache ).
     2. Fallback sang IMAP SSL nếu có App Password và Graph API không sẵn sàng.
     """
     print("[*] Đang kết nối Outlook qua Microsoft Graph API (MSAL / token cache)...")
-    ok, messages, err = _fetch_graph_messages(query, max_results)
+    ok, messages, err = _fetch_graph_messages(query, max_results, unread_only=unread_only, direct_only=direct_only)
     if ok:
         return messages
     print(f"[-] Microsoft Graph API không kết nối được: {err}", file=sys.stderr)

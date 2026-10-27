@@ -14,7 +14,7 @@
     fileTree: (window.SKILLS_FILE_TREE) || [],
     userEnvValues: {},
     currentSkillId: null,
-    currentTab: 'guidelines', // 'guidelines' | 'explorer' | 'skill-env' | 'global-env' | 'triggers'
+    currentTab: 'outputs', // 'outputs' | 'explorer' | 'skill-env' | 'global-env'
     sidebarViewMode: 'cards', // 'cards' | 'tree'
     categoryFilter: 'All',
     searchQuery: '',
@@ -25,31 +25,27 @@
     markdownViewMode: 'source', // 'rendered' | 'source' in code viewer
     expandedPaths: new Set(),   // Expanded folder paths in Tree view
     outputsFiles: [],           // Cached list of files in /outputs
+    outputScope: 'skill',       // 'skill' (only selected skill's outputs) | 'all' (global outputs repository)
     outputSearchQuery: '',
     outputSkillFilter: 'all',
     outputExtFilter: 'all',
     outputShowTemp: false,
     activePreviewData: null,    // Currently previewed output file data
-    activePreviewMode: 'rendered', // 'rendered' | 'source'
+    activePreviewMode: 'rendered', // 'rendered' | 'txt' | 'docx'
     activeExcelSheetIdx: 0,
-    chatMessages: JSON.parse(localStorage.getItem('SKILLS_STUDIO_CHAT_HISTORY') || 'null') || [
-      {
-        id: 'welcome-msg',
-        role: 'assistant',
-        skillId: 'vn-stock-advisor',
-        model: 'Studio Hybrid Bridge',
-        timestamp: new Date().toISOString(),
-        content: `### 👋 Chào mừng bạn đến với **Web Chat & Skill Runner (Studio Bridge)**!
-
-Tại đây bạn có **2 chế độ kết nối linh hoạt**:
-1. **⚡ Chat & Chạy Skill Trực Tiếp Trên Web (Server-side Live):** Gửi câu hỏi ở khung chat bên dưới. Server của Web sẽ tự động kích hoạt Python Skill tương ứng (ví dụ: gọi trực tiếp **API Finbox Live** của \`vn-stock-advisor\` hoặc \`run_skill.py\`), kết hợp cùng **Gemini AI (\`gemini-3.8-flash\`)** theo chuẩn \`SKILL.md\` và tự động lưu báo cáo \`.md\` vào **Kho Outputs**.
-2. **🔗 Cầu Nối Sang Khung Chat AI Studio (Studio Agent Bridge):** Do cơ chế bảo mật trình duyệt (Cross-Origin iFrame Sandbox), một trang web bên trong khung Preview không thể tự ý gõ phím hộ vào ô chat của Google AI Studio bên trái. Tuy nhiên, bạn chỉ cần nhập yêu cầu và bấm **"Copy Lệnh Chuẩn Sang Studio Chat"** — hệ thống sẽ đóng gói sẵn Prompt chuẩn kèm cấu hình Skill để bạn dán (\`Ctrl+V\`) sang khung chat AI Studio trong 1 giây!`
-      }
-    ],
-    chatSkillMode: 'auto',
-    chatAutoSaveMd: true,
-    chatLoading: false,
-    chatDraft: ''
+    txtWordWrap: true,
+    txtShowLineNumbers: true,
+    stockScreener: {
+      preset: 'rsi40_can_cung', // 'rsi40_can_cung' | 'smart_money' | 't25_quick' | 'finbox_buy' | 'dip_buying'
+      floor: 'ALL',
+      minLiquidity: 0.5,
+      minRsi: 37,
+      maxRsi: 45,
+      canCungOnly: true,
+      data: null,
+      loading: false,
+      selectedTickerDetail: null
+    }
   };
 
   // DOM Elements cache
@@ -103,9 +99,9 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     renderSidebarTree();
     updateEnvCounters();
 
-    // Select first skill
+    // Select first skill on initial load (without auto-copying on page boot)
     if (state.skills.length > 0) {
-      selectSkill(state.skills[0].id);
+      selectSkill(state.skills[0].id, { autoCopy: false });
     }
 
     // Event Listeners
@@ -232,25 +228,99 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       exportEnvFile('global');
     });
 
-    // Outputs quick button in top navbar
+    // Global Outputs Repository button in top navbar ("Kho Toàn Bộ Outputs")
     const btnNavOutputs = document.getElementById('btnNavOutputs');
     if (btnNavOutputs) {
       btnNavOutputs.addEventListener('click', () => {
-        switchTab('outputs');
+        openAllOutputs();
       });
     }
 
-    // Chat Studio quick button in top navbar
-    const btnNavChatStudio = document.getElementById('btnNavChatStudio');
-    if (btnNavChatStudio) {
-      btnNavChatStudio.addEventListener('click', () => {
-        switchTab('chat-studio');
+    // Stock Screener Pro Button in top navbar
+    const btnNavStockScreener = document.getElementById('btnNavStockScreener');
+    if (btnNavStockScreener) {
+      btnNavStockScreener.addEventListener('click', () => {
+        openStockScreener();
       });
+    }
+
+    // Sidebar Toggle Button (Tắt / Mở Nav)
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    if (btnToggleSidebar) {
+      btnToggleSidebar.addEventListener('click', () => {
+        toggleSidebar();
+      });
+    }
+
+    // Sidebar Mobile Backdrop Overlay
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', () => {
+        toggleSidebar(false);
+      });
+    }
+
+    // On mobile devices, start with sidebar collapsed so workspace is cleanly visible
+    if (window.innerWidth <= 900) {
+      toggleSidebar(false);
+    }
+
+    // Close modal when clicking backdrop or pressing Escape
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) {
+          closeModal(backdrop);
+        }
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.active').forEach(backdrop => {
+          closeModal(backdrop);
+        });
+      }
+    });
+  }
+
+  function toggleSidebar(forceOpen) {
+    const sidebar = document.getElementById('appSidebar') || document.querySelector('.app-sidebar');
+    const btn = document.getElementById('btnToggleSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) return;
+
+    if (forceOpen === true) {
+      state.sidebarCollapsed = false;
+    } else if (forceOpen === false) {
+      state.sidebarCollapsed = true;
+    } else {
+      state.sidebarCollapsed = !state.sidebarCollapsed;
+    }
+
+    if (state.sidebarCollapsed) {
+      sidebar.classList.add('collapsed');
+      if (overlay) overlay.classList.remove('active');
+      if (btn) {
+        btn.innerHTML = '<i class="bi bi-layout-sidebar"></i>';
+        btn.title = 'Mở thanh điều hướng bên trái (Nav)';
+      }
+    } else {
+      sidebar.classList.remove('collapsed');
+      if (overlay && window.innerWidth <= 900) {
+        overlay.classList.add('active');
+      }
+      if (btn) {
+        btn.innerHTML = '<i class="bi bi-layout-sidebar-inset"></i>';
+        btn.title = 'Ẩn thanh điều hướng bên trái (Nav)';
+      }
     }
   }
 
   function setSidebarViewMode(mode) {
     state.sidebarViewMode = mode;
+    if (state.sidebarCollapsed) {
+      toggleSidebar(true);
+    }
     if (mode === 'cards') {
       el.btnViewCards.classList.add('active');
       el.btnViewTree.classList.remove('active');
@@ -374,12 +444,15 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       const skillOutputCount = (state.outputsFiles || []).filter(f => !f.isTemp && f.skillId === skill.id).length;
 
       return `
-        <div class="skill-card ${isActive ? 'active' : ''}" data-skill-id="${skill.id}">
+        <div class="skill-card ${isActive ? 'active' : ''}" data-skill-id="${skill.id}" title="Click để chọn Skill &amp; tự động Copy lệnh chuẩn vào Clipboard">
           <div class="skill-card-icon">
             <i class="bi ${skill.icon || 'bi-gear'}"></i>
           </div>
           <div class="skill-card-body">
-            <div class="skill-card-title">${escapeHtml(skill.name)}</div>
+            <div class="skill-card-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.35rem;">
+              <span>${escapeHtml(skill.name)}</span>
+              <i class="bi bi-clipboard-check" style="font-size:0.78rem; color:#60a5fa; opacity:0.85;" title="Click tự động copy lệnh chuẩn"></i>
+            </div>
             <div class="skill-card-category" style="display:flex; align-items:center; flex-wrap:wrap; gap:0.3rem;">
               <span>${escapeHtml(skill.category)}</span>
               ${totalEnvs > 0 ? `
@@ -391,10 +464,9 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
                 <span 
                   class="skill-card-env-badge all-set" 
                   style="background:rgba(16,185,129,0.22); color:#10b981; border:1px solid rgba(16,185,129,0.45); cursor:pointer;" 
-                  title="Nhấp để xem ngay ${skillOutputCount} file output của Skill này"
-                  onclick="event.stopPropagation(); SkillsApp.openSkillOutputs('${escapeHtml(skill.id)}')"
+                  title="Skill này có ${skillOutputCount} file output"
                 >
-                  <i class="bi bi-eye-fill"></i> Xem ${skillOutputCount} output
+                  <i class="bi bi-folder2-open"></i> ${skillOutputCount} output
                 </span>
               ` : ''}
             </div>
@@ -406,7 +478,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     el.skillsList.querySelectorAll('.skill-card').forEach(card => {
       card.addEventListener('click', () => {
         const id = card.getAttribute('data-skill-id');
-        selectSkill(id);
+        selectSkill(id, { autoCopy: true });
       });
     });
   }
@@ -433,6 +505,12 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       case '.xlsx':
       case '.xls':
         return { icon: 'bi-file-earmark-excel-fill', cls: 'icon-excel' };
+      case '.docx':
+      case '.doc':
+        return { icon: 'bi-file-earmark-word-fill', cls: 'icon-word' };
+      case '.txt':
+      case '.log':
+        return { icon: 'bi-file-text-fill', cls: 'icon-txt' };
       case '.html':
         return { icon: 'bi-filetype-html', cls: 'icon-html' };
       case '.sh':
@@ -487,16 +565,18 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
           const childrenHtml = node.children ? buildTreeHtml(node.children) : '';
           const hasVisibleChildren = childrenHtml.length > 0;
           if (q && !matches && !hasVisibleChildren) continue;
+          const isOutputsDir = node.name === 'outputs';
 
           html += `
             <div class="tree-node" data-path="${escapeHtml(node.path)}">
               <div class="tree-node-row ${node.name === state.currentSkillId ? 'active' : ''}" 
-                   onclick="SkillsApp.toggleFolder('${escapeHtml(node.path)}')">
+                   onclick="SkillsApp.toggleFolder('${escapeHtml(node.path)}')"
+                   style="${isOutputsDir ? 'background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.28);' : ''}">
                 <span class="tree-chevron ${isExpanded || (q && hasVisibleChildren) ? 'expanded' : ''}">
                   <i class="bi bi-chevron-right"></i>
                 </span>
-                <span class="tree-icon ${iconInfo.cls}"><i class="bi ${iconInfo.icon}"></i></span>
-                <span class="tree-label">${escapeHtml(node.name)}</span>
+                <span class="tree-icon ${iconInfo.cls}"><i class="bi ${isOutputsDir ? 'bi-collection-play-fill' : iconInfo.icon}" style="${isOutputsDir ? 'color:#10b981;' : ''}"></i></span>
+                <span class="tree-label" style="${isOutputsDir ? 'color:#10b981; font-weight:700;' : ''}">${isOutputsDir ? 'outputs/ (File Output)' : escapeHtml(node.name)}</span>
               </div>
               <div class="tree-children ${isExpanded || (q && hasVisibleChildren) ? 'expanded' : ''}">
                 ${childrenHtml}
@@ -532,10 +612,10 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     }
     renderSidebarTree();
 
-    // Check if clicking on a skill folder -> select that skill
+    // Check if clicking on a skill folder -> select that skill (without auto-copying)
     const skillMatch = state.skills.find(s => s.id === folderPath || folderPath.startsWith(s.id + '/'));
     if (skillMatch && skillMatch.id !== state.currentSkillId) {
-      selectSkill(skillMatch.id);
+      selectSkill(skillMatch.id, { autoCopy: false });
     }
   }
 
@@ -545,56 +625,97 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
     state.selectedFile = node;
 
-    // If this is a Markdown file inside outputs/, default to rendered view so user sees the formatted report immediately
-    if (filePath.startsWith('outputs/') && node.extension === '.md') {
-      state.markdownViewMode = 'rendered';
-    }
-
     // Detect which skill this file belongs to
     const parts = filePath.split('/');
     const skillFolder = parts[0];
     if (skillFolder && skillFolder !== '_shared' && skillFolder !== 'outputs') {
       const matchSkill = state.skills.find(s => s.id === skillFolder);
       if (matchSkill && matchSkill.id !== state.currentSkillId) {
-        state.currentSkillId = matchSkill.id;
-        updateHeaderAndBadges(matchSkill);
+        selectSkill(matchSkill.id, { autoCopy: false });
       }
     }
 
-    // Switch to Explorer Tab and render viewer
-    switchTab('explorer');
     renderSidebarTree();
 
-    // If it's an output file and either lacks content or is an Excel (.xlsx) file, fetch live preview data for Explorer
-    if (filePath.startsWith('outputs/')) {
-      const relOut = node.relPath || filePath.replace(/^outputs\//, '');
-      if (node.extension === '.xlsx' && !node.sheets) {
-        try {
-          const res = await fetch(`/api/outputs/preview?file=${encodeURIComponent(relOut)}`);
-          if (res.ok) {
-            const data = await res.json();
-            node.sheets = data.sheets || [];
-            node.activeSheetIdx = 0;
-            if (state.currentTab === 'explorer') renderExplorerTab();
-          }
-        } catch (_) {}
-      } else if (!node.content && !node.isBinary) {
-        try {
-          const res = await fetch(`/api/outputs/preview?file=${encodeURIComponent(relOut)}`);
-          if (res.ok) {
-            const data = await res.json();
-            node.content = data.content || '';
-            if (state.currentTab === 'explorer') renderExplorerTab();
-          }
-        } catch (_) {}
-      }
+    const isExcel = node.extension === '.xlsx' || node.extension === '.xls';
+    const isDocx = node.extension === '.docx' || node.extension === '.doc';
+
+    // If it's an output file, an Excel spreadsheet, or a Word doc, open preview modal
+    if (filePath.startsWith('outputs/') || isExcel || isDocx) {
+      const relTarget = filePath.startsWith('outputs/')
+        ? (node.relPath || filePath.replace(/^outputs\//, ''))
+        : filePath;
+      previewOutputFile(relTarget);
+      return;
+    }
+
+    // Binary file extensions that should be downloaded directly
+    const BINARY_EXTS = ['.zip', '.tar', '.gz', '.rar', '.7z', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.exe', '.bin'];
+    if (node.isBinary && BINARY_EXTS.includes(node.extension)) {
+      downloadOutputFile(filePath);
+      return;
+    }
+
+    // For all readable files in skills/ (Markdown, Python scripts, JSON seeds, text, shell, etc.):
+    const modal = document.getElementById('outputPreviewModal');
+    const dlBtn = document.getElementById('btnDownloadPreviewFile');
+    if (dlBtn) {
+      dlBtn.href = 'javascript:void(0)';
+      dlBtn.removeAttribute('download');
+      dlBtn.onclick = (e) => downloadOutputFile(filePath, e);
+    }
+
+    if (node.content !== undefined) {
+      state.activePreviewData = {
+        type: 'text',
+        name: node.name,
+        relPath: node.path,
+        ext: node.extension,
+        size: node.size,
+        mtime: null,
+        content: node.content || ''
+      };
+      // Markdown defaults to rendered view; all other files default to TXT view
+      state.activePreviewMode = node.extension === '.md' ? 'rendered' : 'txt';
+      renderPreviewModalContent();
+      if (modal) openModal(modal);
+    } else {
+      previewOutputFile(filePath);
     }
   }
 
-  function selectSkill(skillId) {
+  function buildSkillStandardPrompt(skillOrId) {
+    const skillId = typeof skillOrId === 'string' ? skillOrId : (skillOrId && skillOrId.id) || state.currentSkillId || '';
+    if (!skillId) return '';
+    return `Load skill ${skillId} (/skills/${skillId}/SKILL.md), tuân thủ đúng định dạng output mô tả trong skill và lưu kết quả vào thư mục /outputs/ giúp tôi nhé:\nYêu cầu: `;
+  }
+
+  function copySkillStandardPrompt(skillId) {
+    const targetId = skillId || state.currentSkillId;
+    const skill = state.skills.find(s => s.id === targetId);
+    const promptText = buildSkillStandardPrompt(targetId);
+    if (!promptText) return;
+    copyToClipboard(
+      promptText,
+      `Đã tự động copy lệnh chuẩn của skill "${skill ? skill.name : targetId}" vào Clipboard! Hãy Ctrl+V sang cửa sổ Chat AI Studio.`
+    );
+  }
+
+  function selectSkill(skillId, options = {}) {
+    const autoCopy = Boolean(options.autoCopy);
     state.currentSkillId = skillId;
     const skill = state.skills.find(s => s.id === skillId);
     if (!skill) return;
+
+    // Scope outputs strictly to this selected skill
+    state.outputScope = 'skill';
+    state.outputSkillFilter = skillId;
+    state.activePreviewData = null;
+
+    // Auto-copy standard prompt to clipboard ONLY when user clicks a skill in the card list
+    if (autoCopy) {
+      copySkillStandardPrompt(skillId);
+    }
 
     // Update active class in sidebar
     el.skillsList.querySelectorAll('.skill-card').forEach(card => {
@@ -606,7 +727,9 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       }
     });
 
+    syncOutputsIntoFileTree();
     updateHeaderAndBadges(skill);
+    updateOutputsBadges();
 
     // Auto-select skill's SKILL.md file for the Explorer tab
     const skillDirNode = state.fileTree.find(n => n.name === skillId);
@@ -619,6 +742,11 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     // Render active tab content
     renderActiveTab();
     renderSidebarTree();
+
+    // Auto-close drawer on mobile after skill selection
+    if (window.innerWidth <= 900) {
+      toggleSidebar(false);
+    }
   }
 
   function updateHeaderAndBadges(skill) {
@@ -635,11 +763,19 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     const skillEnvTabCount = document.getElementById('skillEnvTabCount');
     if (skillEnvTabCount) skillEnvTabCount.textContent = totalEnvs;
 
-    const triggerTabCount = document.getElementById('triggerTabCount');
-    if (triggerTabCount) triggerTabCount.textContent = (skill.triggers || []).length;
+    const btnCopyHeader = document.getElementById('btnCopySkillPromptHeader');
+    if (btnCopyHeader) {
+      btnCopyHeader.innerHTML = `<i class="bi bi-clipboard-check-fill"></i> <span>Copy Lệnh Chuẩn Skill</span>`;
+    }
   }
 
   function switchTab(tabId) {
+    // When clicking the "Kho Outputs Skill" tab button directly on the skill bar, scope to current skill unless opened via openAllOutputs()
+    if (tabId === 'outputs' && state.currentSkillId && !state._openingAllOutputs) {
+      state.outputScope = 'skill';
+      state.outputSkillFilter = state.currentSkillId;
+    }
+    state._openingAllOutputs = false;
     state.currentTab = tabId;
 
     // Update Tab Buttons UI
@@ -661,16 +797,27 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       activePane.classList.add('active');
     }
 
+    syncOutputsIntoFileTree();
+    updateOutputsBadges();
     renderActiveTab();
   }
 
+  function openAllOutputs() {
+    state.outputScope = 'all';
+    state.outputSkillFilter = 'all';
+    state.activePreviewData = null;
+    state._openingAllOutputs = true;
+    switchTab('outputs');
+  }
+
   function renderActiveTab() {
-    if (state.currentTab === 'outputs') {
-      renderOutputsTab();
+    if (state.currentTab === 'stock-screener') {
+      renderStockScreener();
       return;
     }
-    if (state.currentTab === 'chat-studio') {
-      renderChatStudioTab();
+
+    if (state.currentTab === 'outputs') {
+      renderOutputsTab();
       return;
     }
 
@@ -678,26 +825,15 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     if (!currentSkill) return;
 
     switch (state.currentTab) {
-      case 'guidelines':
-        renderGuidelinesTab(currentSkill);
-        break;
-      case 'explorer':
-        renderExplorerTab(currentSkill);
-        break;
       case 'skill-env':
         renderSkillEnvTab(currentSkill);
         break;
       case 'global-env':
         renderGlobalEnvTab();
         break;
-      case 'triggers':
-        renderTriggersTab(currentSkill);
-        break;
       case 'outputs':
+      default:
         renderOutputsTab();
-        break;
-      case 'chat-studio':
-        renderChatStudioTab();
         break;
     }
   }
@@ -749,7 +885,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
         </div>
 
         ${skillOutputs.length > 0 ? `
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 0.75rem;">
+          <div class="skill-recent-outputs-grid">
             ${skillOutputs.map(f => {
               const fb = getFileBadgeStyle(f.ext);
               const relEncoded = escapeHtml(f.relPath || f.name);
@@ -770,7 +906,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
                     <button class="btn" onclick="SkillsApp.previewOutputFile('${relEncoded}')" style="flex: 1; justify-content: center; padding: 4px 8px; font-size: 0.78rem; background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.4); color: #60a5fa;">
                       <i class="bi bi-eye-fill"></i> Xem Nội Dung
                     </button>
-                    <button class="btn" onclick="SkillsApp.openFile('outputs/${relEncoded}')" style="padding: 4px 8px; font-size: 0.78rem;" title="Mở trong tab Cây Thư Mục File">
+                    <button class="btn" onclick="SkillsApp.openFile('outputs/${relEncoded}')" style="padding: 4px 8px; font-size: 0.78rem;" title="Mở trong tab Trình Xem File">
                       <i class="bi bi-layout-sidebar-inset"></i> Mở Ở Explorer
                     </button>
                     <button type="button" onclick="SkillsApp.downloadOutputFile('${relEncoded}', event)" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.78rem; background: #10b981; border-color: #10b981; text-decoration: none;">
@@ -811,68 +947,12 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
   }
 
   // --------------------------------------------------------------------------
-  // Tab 2: Split Explorer & File Viewer Render (Includes outputs/ + skills/)
+  // Tab 2: Full-width File Viewer Render (Tree lives solely in left Nav Bar)
   // --------------------------------------------------------------------------
   function renderExplorerTab(currentSkill) {
     const container = document.getElementById('explorerContent');
     if (!container) return;
 
-    const outputsNode = state.fileTree.find(n => n.name === 'outputs');
-    const skillNode = state.fileTree.find(n => n.name === (currentSkill ? currentSkill.id : state.currentSkillId));
-    const sharedNode = state.fileTree.find(n => n.name === '_shared');
-
-    // Build left pane: always include outputs/ at top, then current skill and _shared
-    const relevantTreeNodes = [];
-    if (outputsNode) {
-      state.expandedPaths.add(outputsNode.path);
-      relevantTreeNodes.push(outputsNode);
-    }
-    if (skillNode) relevantTreeNodes.push(skillNode);
-    if (sharedNode) relevantTreeNodes.push(sharedNode);
-
-    function buildMiniTreeHtml(nodes) {
-      let html = '';
-      for (const node of nodes) {
-        const isDir = node.type === 'directory';
-        const isExpanded = state.expandedPaths.has(node.path);
-        const iconInfo = getFileIcon(node.name, isDir, isExpanded);
-
-        if (isDir) {
-          const childrenHtml = node.children ? buildMiniTreeHtml(node.children) : '';
-          const isOutputsDir = node.name === 'outputs';
-          html += `
-            <div class="tree-node" data-path="${escapeHtml(node.path)}">
-              <div class="tree-node-row" onclick="SkillsApp.toggleFolder('${escapeHtml(node.path)}')" style="${isOutputsDir ? 'background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.28);' : ''}">
-                <span class="tree-chevron ${isExpanded ? 'expanded' : ''}">
-                  <i class="bi bi-chevron-right"></i>
-                </span>
-                <span class="tree-icon ${iconInfo.cls}"><i class="bi ${isOutputsDir ? 'bi-collection-play-fill' : iconInfo.icon}" style="${isOutputsDir ? 'color:#10b981;' : ''}"></i></span>
-                <span class="tree-label" style="${isOutputsDir ? 'color:#10b981; font-weight:700;' : ''}">${isOutputsDir ? 'outputs/ (File Output)' : escapeHtml(node.name)}</span>
-              </div>
-              <div class="tree-children ${isExpanded ? 'expanded' : ''}">
-                ${childrenHtml}
-              </div>
-            </div>
-          `;
-        } else {
-          const isActive = state.selectedFile && state.selectedFile.path === node.path;
-          html += `
-            <div class="tree-node-row ${isActive ? 'active' : ''}" 
-                 onclick="SkillsApp.openFile('${escapeHtml(node.path)}')">
-              <span class="tree-chevron hidden"><i class="bi bi-chevron-right"></i></span>
-              <span class="tree-icon ${iconInfo.cls}"><i class="bi ${iconInfo.icon}"></i></span>
-              <span class="tree-label">${escapeHtml(node.name)}</span>
-              <span class="tree-size-badge">${formatFileSize(node.size)}</span>
-            </div>
-          `;
-        }
-      }
-      return html;
-    }
-
-    const leftTreeHtml = buildMiniTreeHtml(relevantTreeNodes);
-
-    // Build right pane: file viewer for state.selectedFile
     const file = state.selectedFile;
     let rightViewerHtml = '';
 
@@ -880,7 +960,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       rightViewerHtml = `
         <div class="binary-file-box">
           <i class="bi bi-file-earmark-code binary-icon"></i>
-          <h3>Chọn một file từ cây thư mục bên trái để xem</h3>
+          <h3>Chọn một file từ Cây Thư Mục ở thanh Nav bên trái để xem</h3>
           <p style="font-size:0.85rem; color:#8b949e;">Hỗ trợ xem báo cáo Output (.md, .xlsx, .json, .txt), mã nguồn Python và tài liệu Skill.</p>
         </div>
       `;
@@ -963,9 +1043,26 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       let viewerContentHtml = '';
       if (isMd && state.markdownViewMode === 'rendered' && window.MarkdownParser) {
         viewerContentHtml = `
-          <div style="padding:1.5rem; width:100%; overflow-y:auto; background:var(--bg-secondary); color:var(--text-primary);">
-            <div class="md-content">
-              ${window.MarkdownParser.render(file.content)}
+          <div style="padding: 2rem 2.5rem; width: 100%; overflow-y: auto; background: #0d1117; color: #e6edf3;">
+            ${window.MarkdownParser.render(file.content)}
+          </div>
+        `;
+      } else if (isMd && state.markdownViewMode === 'split' && window.MarkdownParser) {
+        viewerContentHtml = `
+          <div class="mlp-split-container" style="width: 100%; height: 100%; border: none; border-radius: 0;">
+            <div class="mlp-editor-pane">
+              <div class="mlp-pane-header">
+                <span><i class="bi bi-markdown"></i> Markdown</span>
+              </div>
+              <textarea class="mlp-editor-textarea" spellcheck="false" oninput="SkillsApp.handleLiveSplitEdit(this.value, 'explorerLivePreviewPane')">${escapeHtml(file.content)}</textarea>
+            </div>
+            <div class="mlp-preview-pane">
+              <div class="mlp-pane-header">
+                <span><i class="bi bi-eye"></i> Preview (GitHub Dark)</span>
+              </div>
+              <div class="mlp-preview-scroll" id="explorerLivePreviewPane">
+                ${window.MarkdownParser.render(file.content)}
+              </div>
             </div>
           </div>
         `;
@@ -997,11 +1094,15 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
             <div class="file-viewer-actions">
               ${isMd ? `
-                <button class="btn-file-action" style="${state.markdownViewMode === 'rendered' ? 'background:#3b82f6; color:#fff; border-color:#3b82f6;' : ''}" onclick="SkillsApp.setMarkdownViewMode('rendered')">
+                <button class="btn-file-action" style="${state.markdownViewMode === 'rendered' ? 'background:#238636; color:#fff; border-color:#2ea043;' : ''}" onclick="SkillsApp.setMarkdownViewMode('rendered')">
                   <i class="bi bi-eye-fill"></i>
                   <span>Xem Bản Đọc Đẹp</span>
                 </button>
-                <button class="btn-file-action" style="${state.markdownViewMode === 'source' ? 'background:#3b82f6; color:#fff; border-color:#3b82f6;' : ''}" onclick="SkillsApp.setMarkdownViewMode('source')">
+                <button class="btn-file-action" style="${state.markdownViewMode === 'split' ? 'background:#1f6feb; color:#fff; border-color:#388bfd;' : ''}" onclick="SkillsApp.setMarkdownViewMode('split')">
+                  <i class="bi bi-layout-split"></i>
+                  <span>Live Preview (Split)</span>
+                </button>
+                <button class="btn-file-action" style="${state.markdownViewMode === 'source' ? 'background:#30363d; color:#fff; border-color:#8b949e;' : ''}" onclick="SkillsApp.setMarkdownViewMode('source')">
                   <i class="bi bi-code-slash"></i>
                   <span>Xem Mã Nguồn (.md)</span>
                 </button>
@@ -1044,20 +1145,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
     container.innerHTML = `
       <div class="split-explorer-layout">
-        <div class="explorer-left-pane">
-          <div class="tree-toolbar">
-            <span><i class="bi bi-folder-fill" style="color:#f59e0b;"></i> Cây File &amp; Outputs</span>
-            <div class="tree-toolbar-actions">
-              <button class="btn-tree-tool" onclick="SkillsApp.expandMiniTree()"><i class="bi bi-arrows-expand"></i> Mở</button>
-              <button class="btn-tree-tool" onclick="SkillsApp.collapseMiniTree()"><i class="bi bi-arrows-collapse"></i> Thu</button>
-            </div>
-          </div>
-          <div class="tree-nodes-list" style="padding:0.4rem;">
-            ${leftTreeHtml}
-          </div>
-        </div>
-
-        <div class="explorer-right-pane">
+        <div class="explorer-right-pane" style="width: 100%;">
           ${rightViewerHtml}
         </div>
       </div>
@@ -1540,15 +1628,50 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
   ];
 
   function updateOutputsBadges() {
-    const visibleCount = (state.outputsFiles || []).filter(f => state.outputShowTemp || !f.isTemp).length;
+    const allVisible = (state.outputsFiles || []).filter(f => state.outputShowTemp || !f.isTemp);
+    const skillVisible = state.currentSkillId
+      ? allVisible.filter(f => f.skillId === state.currentSkillId)
+      : allVisible;
+
     const badge = document.getElementById('outputsTabCount');
-    if (badge) badge.textContent = `${visibleCount} Files`;
+    const label = document.getElementById('tabOutputsLabel');
+    if (state.outputScope === 'all') {
+      if (label) label.textContent = 'Kho Toàn Bộ Outputs';
+      if (badge) badge.textContent = `${allVisible.length}`;
+    } else {
+      if (label) label.textContent = 'Kho Outputs Skill';
+      if (badge) badge.textContent = `${skillVisible.length}`;
+    }
+
     const navBadge = document.getElementById('navOutputsCount');
-    if (navBadge) navBadge.textContent = `${visibleCount}`;
+    if (navBadge) navBadge.textContent = `${allVisible.length}`;
+  }
+
+  function sortOutputsNewestFirst(list) {
+    if (!Array.isArray(list)) return [];
+    return list.slice().sort((a, b) => {
+      const ta = a.sortTimestamp || (a.mtime ? new Date(a.mtime).getTime() : 0) || 0;
+      const tb = b.sortTimestamp || (b.mtime ? new Date(b.mtime).getTime() : 0) || 0;
+      if (Math.abs(tb - ta) > 1000) return tb - ta;
+      const ma = String(a.name || '').match(/_v(\d+)(?:_(\d{6}))?/i);
+      const mb = String(b.name || '').match(/_v(\d+)(?:_(\d{6}))?/i);
+      const ha = ma && ma[2] ? parseInt(ma[2], 10) : 0;
+      const hb = mb && mb[2] ? parseInt(mb[2], 10) : 0;
+      if (hb !== ha) return hb - ha;
+      const va = ma && ma[1] ? parseInt(ma[1], 10) : 0;
+      const vb = mb && mb[1] ? parseInt(mb[1], 10) : 0;
+      if (vb !== va) return vb - va;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
   }
 
   function syncOutputsIntoFileTree() {
-    const visibleFiles = (state.outputsFiles || []).filter(f => state.outputShowTemp || !f.isTemp);
+    state.outputsFiles = sortOutputsNewestFirst(state.outputsFiles || []);
+    const allVisible = state.outputsFiles.filter(f => state.outputShowTemp || !f.isTemp);
+    const scopedFiles = (state.outputScope === 'skill' && state.currentSkillId)
+      ? allVisible.filter(f => f.skillId === state.currentSkillId)
+      : allVisible;
+
     let outputsNode = state.fileTree.find(n => n.name === 'outputs');
     if (!outputsNode) {
       outputsNode = {
@@ -1561,13 +1684,14 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     }
     state.expandedPaths.add('outputs');
 
-    outputsNode.children = visibleFiles.map(f => ({
+    outputsNode.children = scopedFiles.map(f => ({
       name: f.name,
       path: `outputs/${f.relPath || f.name}`,
       relPath: f.relPath || f.name,
       type: 'file',
       extension: f.ext,
       size: f.size,
+      mtime: f.mtime,
       isBinary: f.ext === '.xlsx' || f.ext === '.xls',
       content: f.content || '',
       base64: f.base64 || '',
@@ -1582,17 +1706,17 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       if (res.ok) {
         const data = await res.json();
         if (data.files && data.files.length > 0) {
-          state.outputsFiles = data.files;
+          state.outputsFiles = sortOutputsNewestFirst(data.files);
         } else {
-          state.outputsFiles = FALLBACK_OUTPUTS;
+          state.outputsFiles = sortOutputsNewestFirst(FALLBACK_OUTPUTS);
         }
       } else {
-        state.outputsFiles = FALLBACK_OUTPUTS;
+        state.outputsFiles = sortOutputsNewestFirst(FALLBACK_OUTPUTS);
       }
     } catch (e) {
       console.warn('Could not fetch /api/outputs, using fallback', e);
       if (!state.outputsFiles || state.outputsFiles.length === 0) {
-        state.outputsFiles = FALLBACK_OUTPUTS;
+        state.outputsFiles = sortOutputsNewestFirst(FALLBACK_OUTPUTS);
       }
     }
     syncOutputsIntoFileTree();
@@ -1600,13 +1724,10 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     renderSkillsList();
     renderSidebarTree();
 
-    if (state.currentTab === 'guidelines') {
-      const currentSkill = state.skills.find(s => s.id === state.currentSkillId);
-      if (currentSkill) renderGuidelinesTab(currentSkill);
-    } else if (state.currentTab === 'explorer') {
+    if (state.currentTab === 'explorer') {
       const currentSkill = state.skills.find(s => s.id === state.currentSkillId);
       if (currentSkill) renderExplorerTab(currentSkill);
-    } else if (rerender && state.currentTab === 'outputs') {
+    } else if (state.currentTab === 'outputs') {
       renderOutputsView();
     }
   }
@@ -1633,6 +1754,9 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       case '.xlsx':
       case '.xls':
         return { icon: 'bi-file-earmark-excel-fill', color: '#10b981', bg: 'rgba(16,185,129,0.16)', label: 'EXCEL (.XLSX)' };
+      case '.docx':
+      case '.doc':
+        return { icon: 'bi-file-earmark-word-fill', color: '#2563eb', bg: 'rgba(37,99,235,0.16)', label: 'WORD (.DOCX)' };
       case '.md':
         return { icon: 'bi-file-earmark-richtext-fill', color: '#3b82f6', bg: 'rgba(59,130,246,0.16)', label: 'MARKDOWN (.MD)' };
       case '.json':
@@ -1640,6 +1764,8 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       case '.txt':
       case '.log':
         return { icon: 'bi-file-text-fill', color: '#a855f7', bg: 'rgba(168,85,247,0.16)', label: 'TEXT (.TXT)' };
+      case '.py':
+        return { icon: 'bi-filetype-py', color: '#38bdf8', bg: 'rgba(56,189,248,0.16)', label: 'PYTHON (.PY)' };
       default:
         return { icon: 'bi-file-earmark-code-fill', color: '#94a3b8', bg: 'rgba(148,163,184,0.16)', label: (ext || 'FILE').toUpperCase() };
     }
@@ -1662,8 +1788,25 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     if (!container) return;
 
     const allFiles = (state.outputsFiles || []).filter(f => state.outputShowTemp || !f.isTemp);
+    const isAllMode = state.outputScope === 'all';
+    const currentSkill = state.skills.find(s => s.id === state.currentSkillId);
 
-    // Distinct skills present in outputs
+    // Base set of files: strictly scoped to the selected skill unless in "Kho Toàn Bộ Outputs" mode
+    const baseFiles = isAllMode
+      ? allFiles
+      : allFiles.filter(f => f.skillId === state.currentSkillId);
+
+    // Ensure activePreviewData belongs to the current scope
+    if (state.activePreviewData && !isAllMode && state.currentSkillId) {
+      const previewBelongsToSkill = baseFiles.some(
+        f => (f.relPath || f.name) === (state.activePreviewData.relPath || state.activePreviewData.name)
+      );
+      if (!previewBelongsToSkill) {
+        state.activePreviewData = null;
+      }
+    }
+
+    // Distinct skills present in all outputs (for "Kho Toàn Bộ Outputs" filter bar)
     const skillGroupsMap = {};
     allFiles.forEach(f => {
       const sid = f.skillId || 'chat-output';
@@ -1680,11 +1823,17 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     });
     const skillGroups = Object.values(skillGroupsMap);
 
-    // Apply filters
+    // Apply search, extension, and optional skill filter (in all mode)
     const q = (state.outputSearchQuery || '').toLowerCase().trim();
-    const filteredFiles = allFiles.filter(f => {
-      const matchSkill = state.outputSkillFilter === 'all' || f.skillId === state.outputSkillFilter;
-      const matchExt = state.outputExtFilter === 'all' || f.ext === state.outputExtFilter;
+    const filteredFiles = baseFiles.filter(f => {
+      const matchSkill = !isAllMode
+        ? true
+        : (state.outputSkillFilter === 'all' || f.skillId === state.outputSkillFilter);
+      const matchExt = state.outputExtFilter === 'all'
+        ? true
+        : state.outputExtFilter === '.txt'
+          ? (f.ext === '.txt' || f.ext === '.log' || !['.md', '.xlsx', '.xls', '.docx', '.doc'].includes(f.ext))
+          : (f.ext === state.outputExtFilter);
       const matchQuery = !q ||
         (f.name && f.name.toLowerCase().includes(q)) ||
         (f.relPath && f.relPath.toLowerCase().includes(q)) ||
@@ -1693,191 +1842,151 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       return matchSkill && matchExt && matchQuery;
     });
 
-    const mdCount = allFiles.filter(f => f.ext === '.md').length;
-    const xlsxCount = allFiles.filter(f => f.ext === '.xlsx').length;
-    const jsonTxtCount = allFiles.filter(f => f.ext === '.json' || f.ext === '.txt').length;
-
     container.innerHTML = `
-      <div class="outputs-container" style="padding: 1.5rem; max-width: 1280px; margin: 0 auto;">
-        
-        <!-- Top Hero Banner & Quick Actions -->
-        <div style="background: linear-gradient(135deg, rgba(16,185,129,0.14), rgba(59,130,246,0.14)); border: 1px solid rgba(16,185,129,0.35); border-radius: 12px; padding: 1.35rem 1.5rem; margin-bottom: 1.5rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.9rem;">
-              <span style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 12px; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
-                <i class="bi bi-collection-play-fill"></i>
-              </span>
-              <div>
-                <h3 style="margin: 0; font-size: 1.3rem; font-weight: 700;">Trung Tâm Xem &amp; Tải Outputs (Tất Cả Skills &amp; Chat)</h3>
-                <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 0.86rem;">
-                  Xem trực tiếp (Preview bảng Excel nhiều Sheet, báo cáo Markdown, JSON, Text) hoặc tải xuống mọi kết quả từ thư mục <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #10b981;">/outputs/</code>
-                </p>
-              </div>
-            </div>
-            <div style="display: flex; gap: 0.55rem; flex-wrap: wrap;">
-              <button class="btn" onclick="SkillsApp.refreshOutputs()" title="Quét lại thư mục /outputs">
-                <i class="bi bi-arrow-clockwise"></i> Làm Mới
-              </button>
-              <button class="btn btn-primary" onclick="SkillsApp.openSaveOutputModal()" style="background: #10b981; border-color: #10b981;">
-                <i class="bi bi-file-earmark-plus-fill"></i> + Lưu Output Từ Chat
-              </button>
-            </div>
-          </div>
-
-          <!-- KPI Summary Strip -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-top: 1.15rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.08);">
-            <div style="background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 0.65rem 0.9rem; display: flex; align-items: center; gap: 0.65rem;">
-              <i class="bi bi-files" style="font-size: 1.35rem; color: #10b981;"></i>
-              <div>
-                <div style="font-size: 1.1rem; font-weight: 700;">${allFiles.length} Files</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Tổng số Output</div>
-              </div>
-            </div>
-            <div style="background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 0.65rem 0.9rem; display: flex; align-items: center; gap: 0.65rem;">
-              <i class="bi bi-file-earmark-richtext-fill" style="font-size: 1.35rem; color: #3b82f6;"></i>
-              <div>
-                <div style="font-size: 1.1rem; font-weight: 700;">${mdCount} Báo cáo (.md)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Đọc &amp; Render trực tiếp</div>
-              </div>
-            </div>
-            <div style="background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 0.65rem 0.9rem; display: flex; align-items: center; gap: 0.65rem;">
-              <i class="bi bi-file-earmark-excel-fill" style="font-size: 1.35rem; color: #10b981;"></i>
-              <div>
-                <div style="font-size: 1.1rem; font-weight: 700;">${xlsxCount} Bảng tính (.xlsx)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Xem Sheet &amp; Tải Excel</div>
-              </div>
-            </div>
-            <div style="background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 0.65rem 0.9rem; display: flex; align-items: center; gap: 0.65rem;">
-              <i class="bi bi-filetype-json" style="font-size: 1.35rem; color: #f59e0b;"></i>
-              <div>
-                <div style="font-size: 1.1rem; font-weight: 700;">${jsonTxtCount} File (.json/.txt)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Dữ liệu &amp; Log</div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="outputs-container">
 
         <!-- Filter & Search Toolbar -->
-        <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.9rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="outputs-toolbar">
+          <div class="outputs-toolbar-row">
             <!-- Search Input -->
-            <div style="flex: 1; min-width: 240px; position: relative;">
-              <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+            <div class="outputs-search-wrap">
+              <i class="bi bi-search outputs-search-icon"></i>
               <input 
                 type="text" 
-                class="env-input" 
-                style="width: 100%; padding-left: 36px;" 
-                placeholder="Tìm theo tên file (VD: vn_stock, sprint3, report...), tên Skill hoặc định dạng..."
+                class="env-input outputs-search-input" 
+                placeholder="Tìm theo tên file hoặc định dạng..."
                 value="${escapeHtml(state.outputSearchQuery)}"
                 oninput="SkillsApp.handleOutputSearch(this.value)"
               >
             </div>
 
             <!-- Format Filter Pills -->
-            <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <div class="outputs-filter-pills">
               ${[
                 { id: 'all', label: 'Tất cả định dạng' },
                 { id: '.md', label: 'Markdown (.md)' },
                 { id: '.xlsx', label: 'Excel (.xlsx)' },
-                { id: '.json', label: 'JSON (.json)' },
-                { id: '.txt', label: 'Text (.txt)' }
+                { id: '.docx', label: 'Word (.docx)' },
+                { id: '.txt', label: 'Dạng TXT / Khác' }
               ].map(fmt => `
                 <button 
                   class="pill-filter ${state.outputExtFilter === fmt.id ? 'active' : ''}" 
                   onclick="SkillsApp.setOutputExtFilter('${fmt.id}')"
-                  style="padding: 5px 11px; font-size: 0.8rem;"
                 >
                   ${fmt.label}
                 </button>
               `).join('')}
 
-              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.4rem; cursor: pointer;">
+              <label class="outputs-checkbox-label">
                 <input type="checkbox" ${state.outputShowTemp ? 'checked' : ''} onchange="SkillsApp.toggleOutputShowTemp(this.checked)">
                 <span>Hiện file .tmp</span>
               </label>
+
+              <button class="btn outputs-btn-refresh" onclick="SkillsApp.refreshOutputs()" title="Quét lại thư mục /outputs">
+                <i class="bi bi-arrow-clockwise"></i> Làm Mới
+              </button>
             </div>
           </div>
 
-          <!-- Skill / Source Filter Pills -->
-          <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; padding-top: 0.65rem; border-top: 1px solid rgba(255,255,255,0.06);">
-            <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-right: 0.25rem;">
-              <i class="bi bi-funnel-fill"></i> Lọc theo Skill / Nguồn:
-            </span>
-            <button 
-              class="pill-filter ${state.outputSkillFilter === 'all' ? 'active' : ''}" 
-              onclick="SkillsApp.setOutputSkillFilter('all')"
-              style="padding: 4px 10px; font-size: 0.78rem;"
-            >
-              🌟 Tất cả (${allFiles.length})
-            </button>
-            ${skillGroups.map(sg => `
-              <button 
-                class="pill-filter ${state.outputSkillFilter === sg.skillId ? 'active' : ''}" 
-                onclick="SkillsApp.setOutputSkillFilter('${escapeHtml(sg.skillId)}')"
-                style="padding: 4px 10px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.35rem;"
-              >
-                <i class="bi ${sg.skillIcon}" style="color: ${state.outputSkillFilter === sg.skillId ? '#fff' : sg.skillColor};"></i>
-                <span>${escapeHtml(sg.skillName)} (${sg.count})</span>
-              </button>
-            `).join('')}
-          </div>
+          ${isAllMode ? `
+            <!-- Skill / Source Filter Pills (Only shown in Kho Toàn Bộ mode) -->
+            <div class="outputs-skill-filter-row">
+              <span class="outputs-filter-heading">
+                <i class="bi bi-funnel-fill"></i> Lọc theo Skill trong Kho Toàn Bộ:
+              </span>
+              <div class="outputs-skill-pills-list">
+                <button 
+                  class="pill-filter ${state.outputSkillFilter === 'all' ? 'active' : ''}" 
+                  onclick="SkillsApp.setOutputSkillFilter('all')"
+                >
+                  🌟 Tất cả (${allFiles.length})
+                </button>
+                ${skillGroups.map(sg => `
+                  <button 
+                    class="pill-filter ${state.outputSkillFilter === sg.skillId ? 'active' : ''}" 
+                    onclick="SkillsApp.setOutputSkillFilter('${escapeHtml(sg.skillId)}')"
+                  >
+                    <i class="bi ${sg.skillIcon}" style="color: ${state.outputSkillFilter === sg.skillId ? '#fff' : sg.skillColor};"></i>
+                    <span>${escapeHtml(sg.skillName)} (${sg.count})</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
         </div>
 
-        <!-- Output Cards Grid -->
-        <h4 style="margin-bottom: 0.9rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-          <span><i class="bi bi-grid-1x2-fill" style="color: #10b981;"></i> Danh Sách File Output (${filteredFiles.length} file)</span>
-          <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Nhấp <strong>"Xem Trực Tiếp"</strong> để đọc báo cáo / xem bảng tính ngay trên trang</span>
-        </h4>
+        <!-- Output Cards Grid Header -->
+        <div class="outputs-list-header">
+          <h4 class="outputs-list-title">
+            <i class="bi bi-grid-1x2-fill" style="color: #10b981;"></i> 
+            <span>Danh Sách File Output (${filteredFiles.length} file)</span>
+          </h4>
+          <span class="outputs-list-subtitle">Sắp xếp theo thời gian tạo mới nhất lên đầu</span>
+        </div>
 
         ${filteredFiles.length === 0 ? `
           <div style="background: var(--bg-card, #1e293b); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 3rem 1.5rem; text-align: center; color: var(--text-muted); margin-bottom: 2rem;">
             <i class="bi bi-inbox" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.6;"></i>
-            <h4 style="color: var(--text-primary); margin-bottom: 0.35rem;">Không tìm thấy file output nào khớp bộ lọc</h4>
-            <p style="font-size: 0.85rem; margin-bottom: 1rem;">Hãy thử chọn "Tất cả" hoặc lưu thêm báo cáo mới từ Chat.</p>
-            <button class="btn" onclick="SkillsApp.resetOutputFilters()">Xóa bộ lọc</button>
+            <h4 style="color: var(--text-primary); margin-bottom: 0.35rem;">
+              ${isAllMode
+                ? 'Không tìm thấy file output nào khớp bộ lọc'
+                : `Skill "${escapeHtml(currentSkill ? currentSkill.name : state.currentSkillId)}" chưa có file output nào trong /outputs/`}
+            </h4>
+            <p style="font-size: 0.85rem; margin-bottom: 1rem;">
+              ${isAllMode
+                ? 'Hãy thử xóa bộ lọc tìm kiếm.'
+                : 'Lệnh chuẩn của Skill đã được copy vào Clipboard — bạn có thể Ctrl+V sang cửa sổ Chat AI Studio để chạy Skill này hoặc mở Kho Toàn Bộ Outputs.'}
+            </p>
+            <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+              ${!isAllMode ? `
+                <button class="btn btn-primary" onclick="SkillsApp.openAllOutputs()" style="background: #10b981; border-color: #10b981;">
+                  <i class="bi bi-collection-play-fill"></i> Mở Kho Toàn Bộ Outputs (${allFiles.length} file)
+                </button>
+              ` : `
+                <button class="btn" onclick="SkillsApp.resetOutputFilters()">Xóa bộ lọc</button>
+              `}
+            </div>
           </div>
         ` : `
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1.15rem; margin-bottom: 2.25rem;">
+          <div class="outputs-grid">
             ${filteredFiles.map(f => {
               const fb = getFileBadgeStyle(f.ext);
               const relEncoded = escapeHtml(f.relPath || f.name);
               const dtStr = formatDateTime(f.mtime);
               return `
-                <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s ease, border-color 0.15s ease;">
-                  <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
-                      <div style="width: 42px; height: 42px; border-radius: 10px; background: ${fb.bg}; color: ${fb.color}; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;">
+                <div class="output-card">
+                  <div class="output-card-body">
+                    <div class="output-card-header">
+                      <div class="output-file-icon" style="background: ${fb.bg}; color: ${fb.color};">
                         <i class="bi ${fb.icon}"></i>
                       </div>
-                      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
-                        <span class="badge" style="background: rgba(255,255,255,0.06); color: ${ f.skillColor || '#10b981' }; border: 1px solid rgba(255,255,255,0.1); font-size: 0.72rem;">
-                          <i class="bi ${f.skillIcon || 'bi-cpu'}"></i> ${escapeHtml(f.skillName || 'Chat Output')}
+                      <div class="output-card-meta">
+                        <span class="badge output-skill-badge" style="background: rgba(255,255,255,0.06); color: ${ f.skillColor || '#10b981' }; border: 1px solid rgba(255,255,255,0.1);">
+                          <i class="bi ${f.skillIcon || 'bi-cpu'}"></i>
+                          <span class="badge-text" title="${escapeHtml(f.skillName || 'Chat Output')}">${escapeHtml(f.skillName || 'Chat Output')}</span>
                         </span>
-                        <span style="font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono);">${fb.label}</span>
+                        <span class="output-ext-label">${fb.label}</span>
                       </div>
                     </div>
 
-                    <h4 style="margin: 0 0 0.4rem 0; font-size: 0.98rem; word-break: break-word; line-height: 1.35;">
-                      <a href="javascript:void(0)" onclick="SkillsApp.previewOutputFile('${relEncoded}')" style="color: var(--text-primary); text-decoration: none;">
+                    <h4 class="output-card-filename">
+                      <a href="javascript:void(0)" onclick="SkillsApp.previewOutputFile('${relEncoded}')">
                         ${escapeHtml(f.name)}
                       </a>
                     </h4>
 
-                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                    <div class="output-card-details">
                       <span><i class="bi bi-hdd"></i> ${formatFileSize(f.size)}</span>
                       ${dtStr ? `<span><i class="bi bi-clock"></i> ${dtStr}</span>` : ''}
-                      ${f.isTemp ? `<span style="color:#f59e0b;"><i class="bi bi-exclamation-circle"></i> File .tmp</span>` : ''}
+                      ${f.isTemp ? `<span class="output-temp-tag"><i class="bi bi-exclamation-circle"></i> File .tmp</span>` : ''}
                     </div>
                   </div>
 
-                  <div style="display: flex; gap: 0.45rem; padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap;">
-                    <button class="btn" onclick="SkillsApp.previewOutputFile('${relEncoded}')" style="flex: 1; justify-content: center; background: rgba(59,130,246,0.18); border: 1px solid rgba(59,130,246,0.4); color: #60a5fa;">
-                      <i class="bi bi-eye-fill"></i> Xem Trực Tiếp
+                  <div class="output-card-actions">
+                    <button class="btn btn-output-preview" onclick="SkillsApp.previewOutputFile('${relEncoded}')">
+                      <i class="bi bi-eye-fill"></i> Xem File
                     </button>
-                    <button class="btn" onclick="SkillsApp.openFile('outputs/${relEncoded}')" style="padding: 5px 9px;" title="Mở trong tab Cây Thư Mục File (Explorer)">
-                      <i class="bi bi-layout-sidebar-inset"></i> Explorer
-                    </button>
-                    <button type="button" onclick="SkillsApp.downloadOutputFile('${relEncoded}', event)" class="btn btn-primary" style="justify-content: center; background: #10b981; border-color: #10b981; text-decoration: none;">
+                    <button type="button" onclick="SkillsApp.downloadOutputFile('${relEncoded}', event)" class="btn btn-primary btn-output-download">
                       <i class="bi bi-download"></i> Tải Về
                     </button>
                   </div>
@@ -1887,184 +1996,6 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
           </div>
         `}
 
-        <!-- Inline Direct Output Viewer Section (Always visible when a file is selected or auto-selected) -->
-        <div id="inlineOutputViewerSection" style="margin-bottom: 2.25rem;">
-          ${renderInlineOutputViewerHtml(filteredFiles)}
-        </div>
-
-        <!-- Complete Compact Table View -->
-        <h4 style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="bi bi-table" style="color: #3b82f6;"></i> Bảng Quản Lý Chi Tiết Toàn Bộ File Outputs
-        </h4>
-
-        <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
-            <thead>
-              <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2);">
-                <th style="padding: 0.85rem 1rem;">Tên File Output</th>
-                <th style="padding: 0.85rem 1rem;">Skill / Nguồn Sinh Ra</th>
-                <th style="padding: 0.85rem 1rem;">Định Dạng</th>
-                <th style="padding: 0.85rem 1rem;">Dung Lượng</th>
-                <th style="padding: 0.85rem 1rem;">Cập Nhật</th>
-                <th style="padding: 0.85rem 1rem; text-align: right;">Thao Tác (Xem / Tải)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredFiles.map(f => {
-                const fb = getFileBadgeStyle(f.ext);
-                const relEncoded = escapeHtml(f.relPath || f.name);
-                return `
-                  <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <td style="padding: 0.8rem 1rem; font-weight: 500;">
-                      <div style="display: flex; align-items: center; gap: 0.55rem;">
-                        <i class="bi ${fb.icon}" style="color: ${fb.color}; font-size: 1.1rem;"></i>
-                        <a href="javascript:void(0)" onclick="SkillsApp.previewOutputFile('${relEncoded}')" style="color: var(--text-primary); text-decoration: none; font-family: var(--font-mono);">
-                          ${escapeHtml(f.relPath || f.name)}
-                        </a>
-                      </div>
-                    </td>
-                    <td style="padding: 0.8rem 1rem;">
-                      <span class="badge" style="background: rgba(255,255,255,0.06); color: ${f.skillColor || '#10b981'}; border: 1px solid rgba(255,255,255,0.08);">
-                        <i class="bi ${f.skillIcon || 'bi-cpu'}"></i> ${escapeHtml(f.skillName || 'Chat Output')}
-                      </span>
-                    </td>
-                    <td style="padding: 0.8rem 1rem; color: var(--text-muted); font-family: var(--font-mono);">${fb.label}</td>
-                    <td style="padding: 0.8rem 1rem; color: var(--text-muted);">${formatFileSize(f.size)}</td>
-                    <td style="padding: 0.8rem 1rem; color: var(--text-muted); font-size: 0.8rem;">${formatDateTime(f.mtime)}</td>
-                    <td style="padding: 0.8rem 1rem; text-align: right; white-space: nowrap;">
-                      <button class="btn" onclick="SkillsApp.previewOutputFile('${relEncoded}')" style="padding: 4px 10px; font-size: 0.8rem; margin-right: 0.35rem; background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35); color: #60a5fa;">
-                        <i class="bi bi-eye-fill"></i> Xem
-                      </button>
-                      <button class="btn" onclick="SkillsApp.openFile('outputs/${relEncoded}')" style="padding: 4px 10px; font-size: 0.8rem; margin-right: 0.35rem;" title="Mở trong Cây Thư Mục File">
-                        <i class="bi bi-layout-sidebar-inset"></i> Explorer
-                      </button>
-                      <button type="button" onclick="SkillsApp.downloadOutputFile('${relEncoded}', event)" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none; background: #10b981; border-color: #10b981;">
-                        <i class="bi bi-download"></i> Tải Về
-                      </button>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    `;
-  }
-
-  function renderInlineOutputViewerHtml(filteredFiles) {
-    // Pick activePreviewData if available, otherwise auto-pick the first file with inline content
-    let data = state.activePreviewData;
-    if (!data && filteredFiles && filteredFiles.length > 0) {
-      const firstTextFile = filteredFiles.find(f => f.content) || filteredFiles[0];
-      if (firstTextFile && firstTextFile.content) {
-        data = {
-          type: 'text',
-          name: firstTextFile.name,
-          relPath: firstTextFile.relPath || firstTextFile.name,
-          ext: firstTextFile.ext,
-          size: firstTextFile.size,
-          mtime: firstTextFile.mtime,
-          content: firstTextFile.content
-        };
-        state.activePreviewData = data;
-      }
-    }
-
-    if (!data) return '';
-
-    const fb = getFileBadgeStyle(data.ext);
-    const encodedPath = (data.relPath || data.name).split('/').map(encodeURIComponent).join('/');
-    let bodyContentHtml = '';
-
-    if (data.type === 'excel') {
-      const sheets = data.sheets || [];
-      const activeSheet = sheets[state.activeExcelSheetIdx] || { rows: [] };
-      const rows = activeSheet.rows || [];
-      bodyContentHtml = `
-        <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.85rem;">
-          ${sheets.map((sh, idx) => `
-            <button class="btn ${state.activeExcelSheetIdx === idx ? 'btn-primary' : ''}" onclick="SkillsApp.switchExcelSheet(${idx})" style="padding:4px 10px; font-size:0.8rem;">
-              <i class="bi bi-table"></i> Sheet: ${escapeHtml(sh.name)} (${sh.rows ? sh.rows.length : 0} dòng)
-            </button>
-          `).join('')}
-        </div>
-        <div style="overflow-x:auto; max-height:540px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; background:#0b1120;">
-          <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-            <tbody>
-              ${rows.map((row, rIdx) => {
-                const isHeader = rIdx === 0 || (row[0] && /^(ID|STT|Phase|Hạng mục|Task)/i.test(String(row[0]).trim()));
-                return `
-                  <tr style="border-bottom:1px solid rgba(255,255,255,0.06); background:${isHeader ? 'rgba(30,64,175,0.28)' : 'transparent'}; font-weight:${isHeader ? '600' : '400'};">
-                    <td style="padding:6px 8px; color:var(--text-muted); border-right:1px solid rgba(255,255,255,0.08); text-align:center;">${rIdx + 1}</td>
-                    ${row.map(cell => `<td style="padding:6px 10px; border-right:1px solid rgba(255,255,255,0.05); white-space:pre-wrap; min-width:70px;">${escapeHtml(cell)}</td>`).join('')}
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } else if (data.ext === '.md') {
-      if (state.activePreviewMode === 'rendered' && window.MarkdownParser) {
-        bodyContentHtml = `
-          <div class="md-content" style="background: rgba(15,23,42,0.75); padding: 1.5rem 2rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); max-height: 620px; overflow-y: auto;">
-            ${window.MarkdownParser.render(data.content || '')}
-          </div>
-        `;
-      } else {
-        bodyContentHtml = `
-          <pre style="margin:0; padding:1.25rem; background:#0b1120; border:1px solid rgba(255,255,255,0.08); border-radius:8px; max-height:620px; overflow:auto; font-family:var(--font-mono); font-size:0.84rem; color:#e2e8f0; white-space:pre-wrap;">${escapeHtml(data.content || '')}</pre>
-        `;
-      }
-    } else {
-      let formattedText = data.content || '';
-      if (data.ext === '.json') {
-        try { formattedText = JSON.stringify(JSON.parse(formattedText), null, 2); } catch (_) {}
-      }
-      bodyContentHtml = `
-        <pre style="margin:0; padding:1.25rem; background:#0b1120; border:1px solid rgba(255,255,255,0.08); border-radius:8px; max-height:620px; overflow:auto; font-family:var(--font-mono); font-size:0.84rem; color:#e2e8f0; white-space:pre-wrap;">${escapeHtml(formattedText)}</pre>
-      `;
-    }
-
-    return `
-      <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(59,130,246,0.4); border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.25);">
-        <div style="padding: 0.95rem 1.25rem; background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(16,185,129,0.12)); border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="display: flex; align-items: center; gap: 0.65rem;">
-            <i class="bi ${fb.icon}" style="color: ${fb.color}; font-size: 1.35rem;"></i>
-            <div>
-              <div style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">
-                👁️ Đang Xem Trực Tiếp: <span style="color: #60a5fa;">${escapeHtml(data.name)}</span>
-              </div>
-              <div style="font-size: 0.76rem; color: var(--text-muted);">
-                Đường dẫn: <code>/outputs/${escapeHtml(data.relPath || data.name)}</code> • ${formatFileSize(data.size)} • ${formatDateTime(data.mtime)}
-              </div>
-            </div>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
-            ${data.ext === '.md' ? `
-              <button class="btn ${state.activePreviewMode === 'rendered' ? 'btn-primary' : ''}" onclick="SkillsApp.switchPreviewMode('rendered')" style="padding: 4px 10px; font-size: 0.8rem;">
-                <i class="bi bi-file-earmark-richtext"></i> Bản Đọc Đẹp
-              </button>
-              <button class="btn ${state.activePreviewMode === 'source' ? 'btn-primary' : ''}" onclick="SkillsApp.switchPreviewMode('source')" style="padding: 4px 10px; font-size: 0.8rem;">
-                <i class="bi bi-code-slash"></i> Mã Nguồn (.md)
-              </button>
-            ` : ''}
-            ${data.type === 'text' ? `
-              <button class="btn" onclick="SkillsApp.copyActivePreview()" style="padding: 4px 10px; font-size: 0.8rem;">
-                <i class="bi bi-clipboard"></i> Copy Nội Dung
-              </button>
-            ` : ''}
-            <button type="button" onclick="SkillsApp.downloadOutputFile('${escapeHtml(data.relPath || data.name)}', event)" class="btn btn-primary" style="background: #10b981; border-color: #10b981; padding: 4px 12px; font-size: 0.8rem; text-decoration: none;">
-              <i class="bi bi-download"></i> Tải File Về
-            </button>
-          </div>
-        </div>
-        <div style="padding: 1.25rem;">
-          ${bodyContentHtml}
-        </div>
       </div>
     `;
   }
@@ -2076,19 +2007,10 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
   }
 
   function openSkillOutputs(skillId) {
-    state.outputSkillFilter = skillId;
-    const skillFiles = (state.outputsFiles || []).filter(f => !f.isTemp && f.skillId === skillId);
-    if (skillFiles.length > 0 && skillFiles[0].content) {
-      state.activePreviewData = {
-        type: 'text',
-        name: skillFiles[0].name,
-        relPath: skillFiles[0].relPath || skillFiles[0].name,
-        ext: skillFiles[0].ext,
-        size: skillFiles[0].size,
-        mtime: skillFiles[0].mtime,
-        content: skillFiles[0].content
-      };
-    }
+    state.currentSkillId = skillId || state.currentSkillId;
+    state.outputScope = 'skill';
+    state.outputSkillFilter = state.currentSkillId;
+    state.activePreviewData = null;
     switchTab('outputs');
   }
 
@@ -2099,6 +2021,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
   function setOutputSkillFilter(skillId) {
     state.outputSkillFilter = skillId;
+    state.activePreviewData = null;
     renderOutputsView();
   }
 
@@ -2109,6 +2032,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
   function toggleOutputShowTemp(checked) {
     state.outputShowTemp = Boolean(checked);
+    syncOutputsIntoFileTree();
     updateOutputsBadges();
     renderOutputsView();
   }
@@ -2131,12 +2055,11 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
 
     if (!modal || !bodyEl) return;
 
-    const encodedPath = relPath.split('/').map(encodeURIComponent).join('/');
     dlBtn.href = 'javascript:void(0)';
     dlBtn.removeAttribute('download');
     dlBtn.onclick = (e) => downloadOutputFile(relPath, e);
 
-    // Fast path: if already cached in state.outputsFiles with inline content, display immediately!
+    // Fast path: if already cached in state.outputsFiles with inline text content, display immediately in popup
     const cachedFile = (state.outputsFiles || []).find(f => (f.relPath || f.name) === relPath);
     if (cachedFile && cachedFile.content) {
       state.activePreviewData = {
@@ -2148,9 +2071,8 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
         mtime: cachedFile.mtime,
         content: cachedFile.content
       };
-      state.activePreviewMode = cachedFile.ext === '.md' ? 'rendered' : 'source';
+      state.activePreviewMode = cachedFile.ext === '.md' ? 'rendered' : 'txt';
       renderPreviewModalContent();
-      if (state.currentTab === 'outputs') renderOutputsView();
       openModal(modal);
       return;
     }
@@ -2176,10 +2098,19 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       }
       const data = await res.json();
       state.activePreviewData = data;
-      state.activePreviewMode = data.ext === '.md' ? 'rendered' : 'source';
+      if (data.type === 'excel') {
+        state.activePreviewMode = 'excel';
+      } else if (data.type === 'docx') {
+        state.activePreviewMode = 'docx';
+      } else if (data.ext === '.md') {
+        state.activePreviewMode = 'rendered';
+      } else {
+        state.activePreviewMode = 'txt';
+      }
       state.activeExcelSheetIdx = 0;
+      state.activeExcelViewEngine = 'jspreview';
+      state.excelTableSearchQuery = '';
       renderPreviewModalContent();
-      if (state.currentTab === 'outputs') renderOutputsView();
     } catch (err) {
       bodyEl.innerHTML = `
         <div style="padding: 2.5rem; text-align: center; color: #f87171;">
@@ -2194,9 +2125,70 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     }
   }
 
+  function destroyActiveExcelPreviewer() {
+    if (state._excelPreviewInstance) {
+      try {
+        state._excelPreviewInstance.destroy();
+      } catch (_) {}
+      state._excelPreviewInstance = null;
+    }
+  }
+
+  function colIndexToLetter(colIdxZeroBased) {
+    let n = colIdxZeroBased + 1;
+    let s = '';
+    while (n > 0) {
+      const m = (n - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s || 'A';
+  }
+
+  function enrichExcelWorkbookFormulas(workbook) {
+    if (!workbook || typeof workbook.eachSheet !== 'function') return workbook;
+    workbook.eachSheet((ws) => {
+      (ws._rows || []).forEach((row) => {
+        if (!row || !row._cells) return;
+        row._cells.forEach((cell) => {
+          if (!cell || !cell.value || typeof cell.value !== 'object') return;
+          if (cell.value.formula && (cell.value.result === undefined || cell.value.result === null || cell.value.result === '')) {
+            const f = String(cell.value.formula).trim();
+            // Compute NETWORKDAYS(startCell, endCell) if present
+            const netMatch = f.match(/^NETWORKDAYS\(\s*([A-Z]+\d+)\s*,\s*([A-Z]+\d+)\s*\)$/i);
+            if (netMatch) {
+              try {
+                const c1 = ws.getCell(netMatch[1]);
+                const c2 = ws.getCell(netMatch[2]);
+                const d1 = new Date(c1.value instanceof Date ? c1.value : String(c1.text || c1.value || ''));
+                const d2 = new Date(c2.value instanceof Date ? c2.value : String(c2.text || c2.value || ''));
+                if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+                  let count = 0;
+                  const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+                  const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+                  while (cur <= end) {
+                    const day = cur.getDay();
+                    if (day !== 0 && day !== 6) count++;
+                    cur.setDate(cur.getDate() + 1);
+                  }
+                  cell.value.result = count;
+                  return;
+                }
+              } catch (_) {}
+            }
+            cell.value.result = `=${f}`;
+          }
+        });
+      });
+    });
+    return workbook;
+  }
+
   function renderPreviewModalContent() {
     const data = state.activePreviewData;
     if (!data) return;
+
+    destroyActiveExcelPreviewer();
 
     const titleEl = document.getElementById('previewModalTitle');
     const subtitleEl = document.getElementById('previewModalSubtitle');
@@ -2212,107 +2204,414 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     }
 
     titleEl.textContent = data.name;
-    subtitleEl.textContent = `Đường dẫn: /outputs/${data.relPath} • Dung lượng: ${formatFileSize(data.size)} • Cập nhật: ${formatDateTime(data.mtime)}`;
+    const pathPrefix = String(data.relPath || '').startsWith('skills/') ? `/${data.relPath}` : `/outputs/${data.relPath}`;
+    subtitleEl.textContent = `Đường dẫn: ${pathPrefix} • Dung lượng: ${formatFileSize(data.size)}${data.mtime ? ' • Cập nhật: ' + formatDateTime(data.mtime) : ''}`;
 
     if (data.type === 'excel') {
       copyBtn.style.display = 'none';
       const sheets = data.sheets || [];
-      modeBtns.innerHTML = sheets.map((sh, idx) => `
+      const engine = state.activeExcelViewEngine || (window.jsPreviewExcel && data.base64 ? 'jspreview' : 'table');
+
+      modeBtns.innerHTML = `
         <button 
-          class="btn ${state.activeExcelSheetIdx === idx ? 'btn-primary' : ''}" 
-          onclick="SkillsApp.switchExcelSheet(${idx})"
+          class="btn ${engine === 'jspreview' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchExcelViewEngine('jspreview')"
           style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem giao diện bảng tính Excel chuẩn với màu sắc, border, merge cell và tab sheet (@js-preview/excel)"
         >
-          <i class="bi bi-table"></i> Sheet: ${escapeHtml(sh.name)} (${sh.rows ? sh.rows.length : 0} dòng)
+          <i class="bi bi-file-earmark-spreadsheet-fill"></i> Bản Đẹp Excel (@js-preview/excel)
         </button>
-      `).join('');
+        <button 
+          class="btn ${engine === 'table' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchExcelViewEngine('table')"
+          style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem dạng bảng dữ liệu hỗ trợ lọc & tìm kiếm nhanh"
+        >
+          <i class="bi bi-search"></i> Bảng Lọc &amp; Tìm Kiếm (${sheets.length} Sheet)
+        </button>
+      `;
 
-      const activeSheet = sheets[state.activeExcelSheetIdx] || { rows: [] };
-      const rows = activeSheet.rows || [];
+      if (engine === 'jspreview' && window.jsPreviewExcel && data.base64) {
+        bodyEl.style.padding = '0.75rem 1rem';
+        bodyEl.innerHTML = `
+          <div class="excel-preview-shell">
+            <div class="excel-formula-bar">
+              <span class="excel-cell-coord" id="excelActiveCellCoord">A1</span>
+              <span class="excel-fx-badge">fx</span>
+              <div class="excel-cell-value-box" id="excelActiveCellValue">Nhấp vào một ô bất kỳ trên bảng tính để xem chi tiết giá trị / công thức • Chuyển đổi các Sheet ở thanh tab phía dưới bảng</div>
+              <span style="font-size: 0.75rem; color: #94a3b8; white-space: nowrap;">
+                <i class="bi bi-layers-fill" style="color: #10b981;"></i> ${sheets.length} Sheet
+              </span>
+            </div>
+            <div class="excel-js-preview-host" id="excelJsPreviewHost"></div>
+          </div>
+        `;
 
-      if (rows.length === 0) {
-        bodyEl.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-muted);">Sheet này không có dữ liệu.</div>`;
+        const hostEl = document.getElementById('excelJsPreviewHost');
+        if (hostEl) {
+          requestAnimationFrame(() => {
+            try {
+              const bytes = base64ToUint8Array(data.base64);
+              const previewer = window.jsPreviewExcel.init(hostEl, {
+                minColLength: 20,
+                minRowLength: 45,
+                showContextmenu: false,
+                beforeTransformData: (wb) => enrichExcelWorkbookFormulas(wb),
+                cellSelected: ({ cell, rowIndex, columnIndex }) => {
+                  const coordEl = document.getElementById('excelActiveCellCoord');
+                  const valEl = document.getElementById('excelActiveCellValue');
+                  if (coordEl && typeof rowIndex === 'number' && typeof columnIndex === 'number') {
+                    coordEl.textContent = `${colIndexToLetter(columnIndex)}${rowIndex + 1}`;
+                  }
+                  if (valEl) {
+                    const txt = (cell && cell.text !== undefined && cell.text !== null) ? String(cell.text) : '';
+                    valEl.textContent = txt || '(Ô trống)';
+                  }
+                }
+              });
+              state._excelPreviewInstance = previewer;
+              previewer.preview(bytes.buffer).catch((err) => {
+                console.warn('jsPreviewExcel fallback to table view:', err);
+                state.activeExcelViewEngine = 'table';
+                renderPreviewModalContent();
+              });
+            } catch (err) {
+              console.warn('jsPreviewExcel init error:', err);
+              state.activeExcelViewEngine = 'table';
+              renderPreviewModalContent();
+            }
+          });
+        }
         return;
       }
 
-      const tableHtml = `
-        <div style="overflow-x: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: #0b1120;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; font-family: var(--font-sans);">
-            <tbody>
-              ${rows.map((row, rIdx) => {
-                const isHeader = rIdx === 0 || (row[0] && /^(ID|STT|Phase|Hạng mục|Task)/i.test(String(row[0]).trim()));
-                return `
-                  <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); background: ${isHeader ? 'rgba(30,64,175,0.28)' : (rIdx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent')}; font-weight: ${isHeader ? '600' : '400'};">
-                    <td style="padding: 6px 8px; color: var(--text-muted); border-right: 1px solid rgba(255,255,255,0.08); text-align: center; font-family: var(--font-mono); font-size: 0.72rem; user-select: none;">${rIdx + 1}</td>
-                    ${row.map(cell => `
-                      <td style="padding: 6px 10px; border-right: 1px solid rgba(255,255,255,0.05); white-space: pre-wrap; min-width: 70px; max-width: 380px;">${escapeHtml(cell)}</td>
-                    `).join('')}
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+      // Searchable Multi-Sheet Table View
+      bodyEl.style.padding = '1.25rem';
+      const activeSheet = sheets[state.activeExcelSheetIdx] || { rows: [] };
+      const allRows = activeSheet.rows || [];
+      const q = (state.excelTableSearchQuery || '').trim().toLowerCase();
+      const filteredRows = q
+        ? allRows.filter((r, idx) => idx === 0 || r.some(c => String(c || '').toLowerCase().includes(q)))
+        : allRows;
+      const maxCols = allRows.reduce((m, r) => Math.max(m, r.length), 0);
+
+      bodyEl.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.85rem; background: #161b22; padding: 0.65rem 0.9rem; border-radius: 8px; border: 1px solid #30363d;">
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            ${sheets.map((sh, idx) => `
+              <button 
+                class="btn ${state.activeExcelSheetIdx === idx ? 'btn-primary' : ''}" 
+                onclick="SkillsApp.switchExcelSheet(${idx})"
+                style="padding: 4px 10px; font-size: 0.8rem;"
+              >
+                <i class="bi bi-table"></i> ${escapeHtml(sh.name)} (${sh.rows ? sh.rows.length : 0} dòng)
+              </button>
+            `).join('')}
+          </div>
+          <div style="position: relative; min-width: 240px;">
+            <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+            <input 
+              type="text" 
+              class="env-input" 
+              placeholder="Lọc nhanh dòng trong sheet..." 
+              value="${escapeHtml(state.excelTableSearchQuery || '')}"
+              oninput="SkillsApp.handleExcelTableSearch(this.value)"
+              style="padding: 5px 10px 5px 30px; font-size: 0.8rem; width: 100%;"
+            >
+          </div>
+        </div>
+
+        ${filteredRows.length === 0 ? `
+          <div style="padding:2rem; text-align:center; color:var(--text-muted);">Không có dòng dữ liệu nào khớp tìm kiếm.</div>
+        ` : `
+          <div style="overflow: auto; max-height: calc(90vh - 210px); border: 1px solid #30363d; border-radius: 8px; background: #0d1117;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; font-family: var(--font-sans);">
+              <thead style="position: sticky; top: 0; z-index: 2; background: #161b22;">
+                <tr style="border-bottom: 1px solid #30363d;">
+                  <th style="padding: 6px 8px; color: #8b949e; border-right: 1px solid #30363d; text-align: center; font-family: var(--font-mono); font-size: 0.72rem; width: 42px;">#</th>
+                  ${Array.from({ length: maxCols }, (_, cIdx) => `
+                    <th style="padding: 6px 10px; color: #8b949e; border-right: 1px solid #30363d; text-align: center; font-family: var(--font-mono); font-size: 0.72rem;">${colIndexToLetter(cIdx)}</th>
+                  `).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredRows.map((row, rIdx) => {
+                  const isHeader = rIdx === 0 || (row[0] && /^(ID|STT|Phase|Hạng mục|Task)/i.test(String(row[0]).trim()));
+                  return `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); background: ${isHeader ? 'rgba(30,64,175,0.28)' : (rIdx % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent')}; font-weight: ${isHeader ? '600' : '400'};">
+                      <td style="padding: 6px 8px; color: var(--text-muted); border-right: 1px solid #30363d; text-align: center; font-family: var(--font-mono); font-size: 0.72rem; user-select: none; background: #161b22;">${rIdx + 1}</td>
+                      ${row.map(cell => `
+                        <td style="padding: 6px 10px; border-right: 1px solid rgba(255,255,255,0.05); white-space: pre-wrap; min-width: 75px; max-width: 380px; color: #e6edf3;">${escapeHtml(cell)}</td>
+                      `).join('')}
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      `;
+      return;
+    }
+
+    // Binary File (non-previewable)
+    if (data.type === 'binary') {
+      copyBtn.style.display = 'none';
+      modeBtns.innerHTML = '';
+      bodyEl.style.padding = '2.5rem 1rem';
+      bodyEl.innerHTML = `
+        <div style="text-align: center; color: var(--text-muted); max-width: 480px; margin: 0 auto;">
+          <i class="bi bi-file-earmark-binary" style="font-size: 3rem; color: #64748b; display: block; margin-bottom: 0.75rem;"></i>
+          <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Tập tin nhị phân (${escapeHtml((data.ext || '').toUpperCase())})</h4>
+          <p style="font-size: 0.88rem; margin-bottom: 1.5rem;">File này là định dạng nhị phân, không thể hiển thị dưới dạng văn bản thuần. Bạn có thể tải trực tiếp file về máy.</p>
+          <button type="button" onclick="SkillsApp.downloadOutputFile('${escapeHtml(data.relPath)}', event)" class="btn btn-primary" style="background: #10b981; border-color: #10b981;">
+            <i class="bi bi-download"></i> Tải File Về Máy (${formatFileSize(data.size)})
+          </button>
         </div>
       `;
-      bodyEl.innerHTML = tableHtml;
       return;
     }
 
-    // Text / Markdown / JSON preview
-    copyBtn.style.display = 'inline-flex';
-    copyBtn.onclick = () => copyToClipboard(data.content, `Đã sao chép toàn bộ nội dung ${data.name}!`);
-
-    if (data.ext === '.md') {
+    // DOCX Word Document Preview
+    if (data.type === 'docx') {
+      const docxMode = state.activePreviewMode === 'txt' ? 'txt' : 'docx';
       modeBtns.innerHTML = `
-        <button class="btn ${state.activePreviewMode === 'rendered' ? 'btn-primary' : ''}" onclick="SkillsApp.switchPreviewMode('rendered')" style="padding: 4px 10px; font-size: 0.8rem;">
-          <i class="bi bi-file-earmark-richtext"></i> Bản Đọc Đẹp
+        <button 
+          class="btn ${docxMode === 'docx' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchPreviewMode('docx')"
+          style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem trang văn bản Word định dạng chuẩn (.docx)"
+        >
+          <i class="bi bi-file-earmark-word-fill"></i> Bản Đẹp Word (.docx)
         </button>
-        <button class="btn ${state.activePreviewMode === 'source' ? 'btn-primary' : ''}" onclick="SkillsApp.switchPreviewMode('source')" style="padding: 4px 10px; font-size: 0.8rem;">
-          <i class="bi bi-code-slash"></i> Mã Nguồn (.md)
+        <button 
+          class="btn ${docxMode === 'txt' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchPreviewMode('txt')"
+          style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem dưới dạng file TXT"
+        >
+          <i class="bi bi-file-text"></i> Dạng File TXT
         </button>
       `;
 
-      if (state.activePreviewMode === 'rendered' && window.MarkdownParser) {
+      if (docxMode === 'docx') {
+        copyBtn.style.display = 'none';
+        bodyEl.style.padding = '0.75rem 1rem';
         bodyEl.innerHTML = `
-          <div class="md-content" style="background: var(--bg-card, #1e293b); padding: 1.5rem 2rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
-            ${window.MarkdownParser.render(data.content || '')}
+          <div class="docx-preview-container" id="docxPreviewHost">
+            <div style="text-align: center; padding: 3rem; color: #94a3b8;">
+              <i class="bi bi-arrow-repeat spin" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+              Đang kết xuất tài liệu Word (.docx)...
+            </div>
           </div>
         `;
-      } else {
-        bodyEl.innerHTML = `
-          <pre style="margin: 0; padding: 1.25rem; background: #0b1120; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.55; color: #e2e8f0; white-space: pre-wrap;">${escapeHtml(data.content || '')}</pre>
-        `;
+
+        const hostEl = document.getElementById('docxPreviewHost');
+        if (hostEl && data.base64) {
+          requestAnimationFrame(() => {
+            try {
+              const bytes = base64ToUint8Array(data.base64);
+              if (window.docx && window.docx.renderAsync) {
+                window.docx.renderAsync(bytes.buffer, hostEl, null, {
+                  className: 'docx',
+                  inWrapper: true,
+                  ignoreWidth: false,
+                  ignoreHeight: false
+                }).catch(err => {
+                  console.warn('docx renderAsync error:', err);
+                  hostEl.innerHTML = `
+                    <div style="padding: 2.5rem; text-align: center; color: #cbd5e1;">
+                      <p>Không thể hiển thị bản xem trước Word: ${escapeHtml(err.message)}</p>
+                      <button onclick="SkillsApp.switchPreviewMode('txt')" class="btn btn-secondary" style="margin-right: 0.5rem;">
+                        <i class="bi bi-file-text"></i> Xem dạng TXT
+                      </button>
+                      <button onclick="SkillsApp.downloadOutputFile('${escapeHtml(data.relPath)}', event)" class="btn btn-primary" style="background:#2563eb; border-color:#2563eb;">
+                        <i class="bi bi-download"></i> Tải file .docx
+                      </button>
+                    </div>
+                  `;
+                });
+              } else {
+                hostEl.innerHTML = `
+                  <div style="padding: 2.5rem; text-align: center; color: #cbd5e1;">
+                    <p>Đang chuẩn bị thư viện đọc Word. Bạn có thể tải file hoặc chuyển sang dạng TXT.</p>
+                    <button onclick="SkillsApp.switchPreviewMode('txt')" class="btn btn-secondary" style="margin-right: 0.5rem;">
+                      <i class="bi bi-file-text"></i> Xem dạng TXT
+                    </button>
+                    <button onclick="SkillsApp.downloadOutputFile('${escapeHtml(data.relPath)}', event)" class="btn btn-primary" style="background:#2563eb; border-color:#2563eb;">
+                      <i class="bi bi-download"></i> Tải file .docx
+                    </button>
+                  </div>
+                `;
+              }
+            } catch (err) {
+              console.warn('docx parse error:', err);
+            }
+          });
+        }
+        return;
       }
-      return;
     }
 
-    // JSON or TXT
-    modeBtns.innerHTML = '';
-    let formattedText = data.content || '';
+    // Markdown Preview (.md)
+    if (data.ext === '.md') {
+      const mdMode = state.activePreviewMode === 'txt' ? 'txt' : 'rendered';
+      copyBtn.style.display = 'inline-flex';
+      copyBtn.onclick = () => copyToClipboard(data.content, `Đã sao chép toàn bộ nội dung ${data.name}!`);
+
+      modeBtns.innerHTML = `
+        <button 
+          class="btn ${mdMode === 'rendered' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchPreviewMode('rendered')"
+          style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem bản dịch Markdown chuẩn định dạng HTML"
+        >
+          <i class="bi bi-eye-fill"></i> Render Markdown
+        </button>
+        <button 
+          class="btn ${mdMode === 'txt' ? 'btn-primary' : ''}" 
+          onclick="SkillsApp.switchPreviewMode('txt')"
+          style="padding: 4px 10px; font-size: 0.8rem;"
+          title="Xem dưới dạng file TXT (nguồn thô)"
+        >
+          <i class="bi bi-file-text"></i> Dạng File TXT
+        </button>
+      `;
+
+      if (mdMode === 'rendered') {
+        bodyEl.style.padding = '1.25rem';
+        if (window.MarkdownParser) {
+          bodyEl.innerHTML = `
+            <div style="background: #0d1117; padding: 2rem 2.5rem; border-radius: 8px; border: 1px solid #30363d;">
+              ${window.MarkdownParser.render(data.content || '')}
+            </div>
+          `;
+        } else {
+          bodyEl.innerHTML = `
+            <pre style="margin: 0; padding: 1.25rem; background: #0d1120; border: 1px solid #30363d; border-radius: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.55; color: #e6edf3; white-space: pre-wrap;">${escapeHtml(data.content || '')}</pre>
+          `;
+        }
+        return;
+      }
+    }
+
+    // =========================================================================
+    // Dạng File TXT: Dành cho tất cả các file khác (.txt, .py, .json, .csv, .sh, .sql, .yaml, .html, etc.)
+    // hoặc khi người dùng bấm chuyển sang chế độ "Dạng File TXT" từ file .md / .docx
+    // =========================================================================
+    bodyEl.style.padding = '0.75rem 1rem';
+    let rawText = data.content || '';
+    if (data.type === 'docx' && !rawText && data.base64) {
+      rawText = `[Tài liệu Microsoft Word (.docx) - ${data.name}]\n\nVui lòng bấm nút "Bản Đẹp Word (.docx)" ở trên để xem đầy đủ định dạng văn bản trang in, hoặc bấm nút "Tải File" để mở trực tiếp trong Microsoft Word / Google Docs.`;
+    }
+
     if (data.ext === '.json') {
       try {
-        formattedText = JSON.stringify(JSON.parse(formattedText), null, 2);
+        rawText = JSON.stringify(JSON.parse(rawText), null, 2);
       } catch (_) {}
     }
 
+    copyBtn.style.display = 'inline-flex';
+    copyBtn.onclick = () => copyToClipboard(rawText, `Đã sao chép toàn bộ nội dung ${data.name}!`);
+
+    if (data.ext !== '.md' && data.type !== 'docx') {
+      modeBtns.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span class="txt-stat-pill" style="background: rgba(168,85,247,0.18); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-weight: 500;">
+            <i class="bi bi-file-text-fill"></i> Dạng File TXT
+          </span>
+          <button 
+            class="btn ${state.txtWordWrap ? 'btn-primary' : ''}" 
+            onclick="SkillsApp.toggleTextWordWrap()" 
+            style="padding: 4px 9px; font-size: 0.78rem;" 
+            title="Bật/Tắt chế độ tự động xuống dòng"
+          >
+            <i class="bi bi-text-wrap"></i> Xuống Dòng: ${state.txtWordWrap ? 'Bật' : 'Tắt'}
+          </button>
+        </div>
+      `;
+    }
+
+    const lines = rawText.split('\n');
+    const wrapCls = state.txtWordWrap ? 'wrap-on' : 'wrap-off';
+    const showLines = state.txtShowLineNumbers !== false;
+
     bodyEl.innerHTML = `
-      <pre style="margin: 0; padding: 1.25rem; background: #0b1120; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.55; color: #e2e8f0; white-space: pre-wrap;">${escapeHtml(formattedText)}</pre>
+      <div class="txt-viewer-shell">
+        <div class="txt-viewer-bar">
+          <div class="txt-viewer-stats">
+            <span class="txt-stat-pill"><i class="bi bi-list-ol"></i> ${lines.length.toLocaleString()} dòng</span>
+            <span class="txt-stat-pill"><i class="bi bi-fonts"></i> ${rawText.length.toLocaleString()} ký tự</span>
+            <span class="txt-stat-pill"><i class="bi bi-hdd"></i> ${formatFileSize(data.size || rawText.length)}</span>
+            <span class="txt-stat-pill" style="color: #38bdf8;"><i class="bi bi-file-earmark-code"></i> ${(data.ext || '.txt').toUpperCase()}</span>
+          </div>
+          <div class="txt-viewer-actions">
+            <button class="btn" onclick="SkillsApp.toggleLineNumbers()" style="padding: 3px 8px; font-size: 0.76rem;" title="Ẩn hoặc hiện cột số thứ tự dòng">
+              <i class="bi bi-hash"></i> ${showLines ? 'Ẩn số dòng' : 'Hiện số dòng'}
+            </button>
+          </div>
+        </div>
+        <div class="txt-viewer-body ${wrapCls}" id="txtViewerBody">
+          ${showLines ? `
+            <div class="txt-line-gutter" aria-hidden="true">
+              ${lines.map((_, i) => `<span>${i + 1}</span>`).join('')}
+            </div>
+          ` : ''}
+          <pre class="txt-content-pre"><code>${escapeHtml(rawText)}</code></pre>
+        </div>
+      </div>
     `;
+  }
+
+  function handleLiveSplitEdit(val, targetId) {
+    if (targetId === 'modalLivePreviewPane' && state.activePreviewData) {
+      state.activePreviewData.content = val;
+    } else if (targetId === 'explorerLivePreviewPane' && state.selectedFile) {
+      state.selectedFile.content = val;
+    }
+    const targetEl = document.getElementById(targetId);
+    if (targetEl && window.MarkdownParser) {
+      targetEl.innerHTML = window.MarkdownParser.render(val);
+    }
+  }
+
+  function toggleTextWordWrap() {
+    state.txtWordWrap = !state.txtWordWrap;
+    renderPreviewModalContent();
+  }
+
+  function toggleLineNumbers() {
+    state.txtShowLineNumbers = state.txtShowLineNumbers === false ? true : false;
+    renderPreviewModalContent();
   }
 
   function switchPreviewMode(mode) {
     state.activePreviewMode = mode;
     renderPreviewModalContent();
-    if (state.currentTab === 'outputs') renderOutputsView();
   }
 
   function switchExcelSheet(idx) {
     state.activeExcelSheetIdx = idx;
     renderPreviewModalContent();
-    if (state.currentTab === 'outputs') renderOutputsView();
+  }
+
+  function switchExcelViewEngine(engine) {
+    state.activeExcelViewEngine = engine;
+    renderPreviewModalContent();
+  }
+
+  function handleExcelTableSearch(val) {
+    state.excelTableSearchQuery = val;
+    renderPreviewModalContent();
+    const input = document.querySelector('#previewModalBody input[type="text"]');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
   }
 
   function closeOutputPreviewModal() {
+    destroyActiveExcelPreviewer();
     closeModal(document.getElementById('outputPreviewModal'));
   }
 
@@ -2617,14 +2916,45 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     reader.readAsText(file);
   }
 
+  function fallbackCopyTextToClipboard(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function copyToClipboard(text, successMsg) {
     if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-      showToast(successMsg || 'Đã sao chép vào clipboard!', 'success');
-    }).catch(err => {
-      console.error(err);
-      showToast('Lỗi sao chép: trình duyệt chặn clipboard', 'error');
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(successMsg || 'Đã sao chép vào clipboard!', 'success');
+      }).catch(() => {
+        const ok = fallbackCopyTextToClipboard(text);
+        if (ok) {
+          showToast(successMsg || 'Đã sao chép vào clipboard!', 'success');
+        } else {
+          showToast('Lỗi sao chép: trình duyệt chặn clipboard', 'error');
+        }
+      });
+    } else {
+      const ok = fallbackCopyTextToClipboard(text);
+      if (ok) {
+        showToast(successMsg || 'Đã sao chép vào clipboard!', 'success');
+      } else {
+        showToast('Lỗi sao chép: trình duyệt chặn clipboard', 'error');
+      }
+    }
   }
 
   function showToast(message, type = 'info') {
@@ -2670,474 +3000,581 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       .replace(/'/g, '&#039;');
   }
 
-  // --------------------------------------------------------------------------
-  // Tab 7: Web Chat & Skill Studio + Studio Bridge
-  // --------------------------------------------------------------------------
-  function persistChatHistory() {
-    try {
-      localStorage.setItem('SKILLS_STUDIO_CHAT_HISTORY', JSON.stringify(state.chatMessages.slice(-30)));
-    } catch (_) {}
-  }
+  // ==============================================================================
+  // STOCK SCREENER PRO MODULE (BỘ LỌC CHỨNG KHOÁN FINBOX 4-PILLAR LIVE)
+  // ==============================================================================
 
-  function renderChatStudioTab() {
-    const container = document.getElementById('chatStudioContent');
-    if (!container) return;
-
-    const currentSkill = state.skills.find(s => s.id === state.currentSkillId);
-    const activeSkillLabel = state.chatSkillMode === 'auto'
-      ? 'Tự động nhận diện Skill từ câu hỏi (Auto-Detect)'
-      : (state.skills.find(s => s.id === state.chatSkillMode)?.name || state.chatSkillMode);
-
-    const samplePrompts = [
-      {
-        label: '📈 Lọc CP RSI ~40 & Cạn cung',
-        skill: 'vn-stock-advisor',
-        text: 'Tìm các mã cổ phiếu có tín hiệu Finbox trung lập hoặc tăng, thanh khoản tốt, kèm nhận định tổng quan thị trường hôm nay và lưu file .md'
-      },
-      {
-        label: '💎 Bắt đáy cổ phiếu Rating A',
-        skill: 'vn-stock-advisor',
-        text: 'Lọc các cổ phiếu Rating A+ hoặc A đang có tín hiệu bắt đáy (DIP) hoặc mua chuẩn trên sàn HSX, sắp xếp theo thanh khoản cao nhất'
-      },
-      {
-        label: '🔍 Phân tích mã FPT, VCB, PVS',
-        skill: 'vn-stock-advisor',
-        text: 'Phân tích chi tiết 4 trụ cột Finbox cho các mã cổ phiếu FPT, VCB, PVS và khuyến nghị hành động'
-      },
-      {
-        label: '📅 Lập kế hoạch Sprint 4',
-        skill: 'sprint-planning',
-        text: 'Hướng dẫn lập Sprint 4 Backlog và công thức Excel networkdays chuẩn theo skill sprint-planning'
-      }
-    ];
-
-    container.innerHTML = `
-      <div style="padding: 1.25rem 1.5rem; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem;">
-        
-        <!-- Top Architecture & Bridge Banner -->
-        <div style="background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(139,92,246,0.14)); border: 1px solid rgba(59,130,246,0.38); border-radius: 12px; padding: 1.1rem 1.35rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-          <div style="display: flex; align-items: center; gap: 0.9rem; flex: 1; min-width: 280px;">
-            <div style="width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.45rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(59,130,246,0.3);">
-              <i class="bi bi-robot"></i>
-            </div>
-            <div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 700;">Trung Tâm Chat &amp; Thực Thi Skill Trực Tiếp + Cầu Nối Studio</h3>
-                <span class="badge badge-info" style="font-size: 0.72rem;">Gemini 3.8 Flash + Python Finbox Live</span>
-              </div>
-              <p style="margin: 3px 0 0 0; font-size: 0.83rem; color: var(--text-muted);">
-                Chat trực tiếp với AI &amp; 13 Python Skills ngay trên Web (tự động lưu báo cáo vào <code>/outputs/</code>), hoặc đóng gói lệnh 1-click để dán sang khung Chat AI Studio bên trái khi cần sửa code hệ thống.
-              </p>
-            </div>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <button class="btn" onclick="SkillsApp.syncEnvToServer()" title="Đồng bộ các biến .env bạn đã nhập trên Web xuống file .env của Server để chạy Python Skill">
-              <i class="bi bi-cloud-check-fill" style="color: #10b981;"></i> Đồng Bộ .env Xuống Server
-            </button>
-            <button class="btn" onclick="SkillsApp.runPythonSkillDirect()" title="Chạy trực tiếp python3 run_skill.py cho Skill đang chọn">
-              <i class="bi bi-terminal-fill" style="color: #f59e0b;"></i> Chạy <code>run_skill.py ${escapeHtml(state.currentSkillId || 'vn-stock-advisor')}</code>
-            </button>
-            <button class="btn" onclick="SkillsApp.clearChatHistory()" title="Xóa lịch sử trò chuyện">
-              <i class="bi bi-trash3"></i> Làm Mới Chat
-            </button>
-          </div>
-        </div>
-
-        <!-- Controls Bar: Skill Selector + Auto-save toggle + Quick Prompts -->
-        <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0.9rem 1.15rem; display: flex; flex-direction: column; gap: 0.75rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.85rem;">
-            <div style="display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 260px;">
-              <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">
-                <i class="bi bi-cpu-fill" style="color: #60a5fa;"></i> Chế độ Skill:
-              </label>
-              <select 
-                id="chatSkillSelect" 
-                class="env-input" 
-                style="max-width: 380px; background: var(--bg-elevated, #0f172a); color: var(--text-primary); padding: 6px 10px; font-size: 0.84rem;"
-                onchange="SkillsApp.setChatSkillMode(this.value)"
-              >
-                <option value="auto" ${state.chatSkillMode === 'auto' ? 'selected' : ''}>✨ Tự động nhận diện Skill từ câu hỏi (Khuyên dùng)</option>
-                ${state.skills.map(s => `
-                  <option value="${escapeHtml(s.id)}" ${state.chatSkillMode === s.id ? 'selected' : ''}>
-                    🎯 ${escapeHtml(s.id)} — ${escapeHtml(s.name)}
-                  </option>
-                `).join('')}
-              </select>
-            </div>
-
-            <label style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.83rem; color: var(--text-secondary); cursor: pointer; user-select: none; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 5px 12px; border-radius: 8px;">
-              <input type="checkbox" ${state.chatAutoSaveMd ? 'checked' : ''} onchange="SkillsApp.toggleChatAutoSave(this.checked)">
-              <span><i class="bi bi-file-earmark-check-fill" style="color: #10b981;"></i> Tự động lưu mọi câu trả lời thành file <code>.md</code> trong Kho Outputs</span>
-            </label>
-          </div>
-
-          <!-- Sample Prompts Strip -->
-          <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
-            <span style="font-size: 0.76rem; color: var(--text-muted); margin-right: 0.2rem;"><i class="bi bi-lightning-charge-fill" style="color: #f59e0b;"></i> Thử nhanh:</span>
-            ${samplePrompts.map((sp, idx) => `
-              <button 
-                class="pill-filter" 
-                onclick="SkillsApp.useQuickPrompt(${idx})"
-                style="padding: 4px 10px; font-size: 0.78rem; border-color: rgba(59,130,246,0.3);"
-              >
-                ${escapeHtml(sp.label)}
-              </button>
-            `).join('')}
-          </div>
-        </div>
-
-        <!-- Messages Stream Box -->
-        <div id="chatMessagesBox" style="background: rgba(15,23,42,0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem; min-height: 390px; max-height: 540px; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
-          ${state.chatMessages.map((msg, idx) => renderChatMessageItem(msg, idx)).join('')}
-          ${state.chatLoading ? `
-            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 10px; color: #93c5fd;">
-              <i class="bi bi-arrow-repeat spin" style="font-size: 1.3rem;"></i>
-              <div>
-                <div style="font-weight: 600; font-size: 0.9rem;">Đang thực thi Skill &amp; tổng hợp báo cáo chuẩn SKILL.md...</div>
-                <div style="font-size: 0.78rem; color: var(--text-muted);">Đang kết nối dữ liệu Finbox / Python Skill &amp; Gemini 3.8 Flash trên Server</div>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-
-        <!-- Chat Input & Dual Action Composer -->
-        <div style="background: var(--bg-card, #1e293b); border: 1px solid rgba(59,130,246,0.35); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-          <textarea 
-            id="chatStudioInput" 
-            class="raw-env-textarea" 
-            style="height: 82px; resize: vertical; font-family: var(--font-sans); font-size: 0.92rem;"
-            placeholder="Nhập câu hỏi hoặc yêu cầu chạy Skill... (VD: Lọc cổ phiếu RSI ngày quanh 40, tín hiệu Finbox trung lập hoặc tăng, cạn cung và lưu file .md)"
-            oninput="SkillsApp.handleChatDraft(this.value)"
-            onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); SkillsApp.sendChatMessage(); }"
-          >${escapeHtml(state.chatDraft || '')}</textarea>
-
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
-              <i class="bi bi-info-circle"></i>
-              <span>Nhấn <strong>Enter</strong> để gửi Chat trực tiếp trên Web • Nhấn <strong>Shift + Enter</strong> để xuống dòng</span>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-              <button 
-                class="btn" 
-                onclick="SkillsApp.copyStudioBridgePrompt()" 
-                title="Đóng gói câu hỏi này kèm ngữ cảnh Skill chuẩn xác vào Clipboard để bạn dán (Ctrl+V) sang khung Chat AI Studio bên trái"
-                style="border: 1px solid rgba(168,85,247,0.45); background: rgba(168,85,247,0.14); color: #e9d5ff;"
-              >
-                <i class="bi bi-box-arrow-up-left"></i> Copy Lệnh Chuẩn Sang Studio Chat
-              </button>
-
-              <button 
-                class="btn btn-primary" 
-                onclick="SkillsApp.sendChatMessage()" 
-                ${state.chatLoading ? 'disabled' : ''}
-                style="background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; padding: 8px 18px; font-weight: 600;"
-              >
-                <i class="bi bi-send-fill"></i> ${state.chatLoading ? 'Đang xử lý...' : 'Gửi Chat & Chạy Skill Ngay'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    `;
-
-    const msgBox = document.getElementById('chatMessagesBox');
-    if (msgBox) {
-      msgBox.scrollTop = msgBox.scrollHeight;
+  function openStockScreener(preset) {
+    if (preset) {
+      state.stockScreener.preset = preset;
+    }
+    switchTab('stock-screener');
+    if (!state.stockScreener.data && !state.stockScreener.loading) {
+      runStockScreen();
     }
   }
 
-  function renderChatMessageItem(msg, idx) {
-    const isUser = msg.role === 'user';
-    const renderedHtml = window.MarkdownParser
-      ? window.MarkdownParser.render(msg.content || '')
-      : `<pre style="white-space:pre-wrap;">${escapeHtml(msg.content || '')}</pre>`;
+  async function runStockScreen(presetOverride, forceRefresh = false) {
+    if (presetOverride) {
+      state.stockScreener.preset = presetOverride;
+    }
+    state.stockScreener.loading = true;
+    renderStockScreener();
 
-    if (isUser) {
-      return `
-        <div style="align-self: flex-end; max-width: 82%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 0.85rem 1.15rem; border-radius: 14px 14px 2px 14px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
-          <div style="font-size: 0.74rem; opacity: 0.85; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-            <span><i class="bi bi-person-fill"></i> Bạn</span>
-            <span>${formatDateTime(msg.timestamp)}</span>
+    try {
+      const payload = {
+        preset: state.stockScreener.preset,
+        floor: state.stockScreener.floor,
+        min_liquidity: state.stockScreener.minLiquidity,
+        min_rsi: state.stockScreener.minRsi,
+        max_rsi: state.stockScreener.maxRsi,
+        force_refresh: Boolean(forceRefresh)
+      };
+
+      const res = await fetch('/api/stocks/screen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        state.stockScreener.data = data;
+        if (forceRefresh) {
+          showToast(`Đã làm mới dữ liệu & lưu ${data.total_matched || 0} mã vào SQLite (/data/stock_screener.db)!`, 'success');
+        }
+      } else {
+        showToast(data.error || 'Lỗi khi lấy dữ liệu bộ lọc', 'error');
+      }
+    } catch (err) {
+      showToast('Không thể kết nối đến máy chủ: ' + err.message, 'error');
+    } finally {
+      state.stockScreener.loading = false;
+      renderStockScreener();
+    }
+  }
+
+  function selectStockPreset(presetId) {
+    state.stockScreener.preset = presetId;
+    if (presetId === 'rsi40_can_cung') {
+      state.stockScreener.minRsi = 37;
+      state.stockScreener.maxRsi = 45;
+    }
+    runStockScreen();
+  }
+
+  function handleStockFloorChange(floor) {
+    state.stockScreener.floor = floor;
+    runStockScreen();
+  }
+
+  function handleStockLiquidityChange(val) {
+    state.stockScreener.minLiquidity = parseFloat(val) || 0.5;
+    runStockScreen();
+  }
+
+  function renderStockScreener() {
+    const container = document.getElementById('stockScreenerContent');
+    if (!container) return;
+
+    const screener = state.stockScreener;
+    const data = screener.data;
+    const presets = [
+      { id: 'rsi40_can_cung', name: 'RSI ~40 & Cạn Cung 10P', icon: 'bi-lightning-charge-fill', badge: 'Yêu cầu chính' },
+      { id: 'smart_money', name: 'Cá Mập Gom Hàng', icon: 'bi-water', badge: 'Smart Money' },
+      { id: 't25_quick', name: 'Đánh T+2.5 Ăn Nhanh', icon: 'bi-rocket-takeoff-fill', badge: 'Biên độ cao' },
+      { id: 'finbox_buy', name: 'Tín Hiệu Mua Finbox', icon: 'bi-bullseye', badge: 'DCS Buy' },
+      { id: 'dip_buying', name: 'Bắt Đáy Chiết Khấu Sâu', icon: 'bi-graph-down-arrow', badge: 'Quá bán' }
+    ];
+
+    let html = `
+      <div class="stock-screener-view">
+        <!-- Header Banner with SQLite Timestamp & Refresh -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(16,185,129,0.15); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+              <div>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Bộ Lọc Chứng Khoán Chuyên Sâu (Finbox 4-Pillar Pro)</h3>
+                <div style="margin-top: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 0.65rem; font-size: 0.8rem;">
+                  <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="bi bi-clock-history" style="color: #38bdf8;"></i>
+                    Thời gian lấy cuối cùng: <strong style="color: #38bdf8; font-family: var(--font-mono);">${data?.updated_at || 'Mới khởi tạo'}</strong>
+                  </span>
+                  ${data?.from_sqlite 
+                    ? `<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-size: 0.72rem; padding: 2px 7px;"><i class="bi bi-database-check"></i> Lưu trữ SQLite (/data/stock_screener.db)</span>`
+                    : `<span class="badge" style="background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); font-size: 0.72rem; padding: 2px 7px;"><i class="bi bi-broadcast"></i> Finbox DCS Live API</span>`
+                  }
+                </div>
+              </div>
+            </div>
           </div>
-          <div style="font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(msg.content)}</div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="SkillsApp.exportStockScreenerReport()" title="Xuất kết quả này thành file Markdown vào thư mục /outputs/" style="background: linear-gradient(135deg, #10b981, #059669); border-color: #059669; font-size: 0.82rem; padding: 6px 12px;">
+              <i class="bi bi-file-earmark-arrow-down-fill"></i>
+              <span>Xuất Báo Cáo .md vào /outputs/</span>
+            </button>
+            <button class="btn" onclick="SkillsApp.runStockScreen(null, true)" title="Lấy dữ liệu mới nhất từ Finbox API và cập nhật lại SQLite database" style="font-size: 0.82rem; padding: 6px 12px; background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.35); color: #60a5fa;">
+              <i class="bi bi-arrow-clockwise ${screener.loading ? 'spin-icon' : ''}"></i>
+              <span style="font-weight: 600;">Làm Mới (Refresh Live)</span>
+            </button>
+          </div>
+        </div>
+    `;
+
+    // Market Overview Bar
+    if (data && data.market_summary) {
+      const ms = data.market_summary;
+      const ov = ms.overview || {};
+      const ind = ms.indices || {};
+      const vnindex = ind['VNINDEX'] || {};
+      const vn30 = ind['VN30'] || {};
+      const hnx = ind['HNX'] || {};
+      const upcom = ind['UPCOM'] || {};
+
+      const renderIdx = (name, row) => {
+        const p = row.priceFlat || '-';
+        const pct = row.pricePercent !== undefined ? (Number(row.pricePercent) * 100).toFixed(2) : '0.00';
+        const isUp = Number(pct) > 0;
+        const isDown = Number(pct) < 0;
+        const color = isUp ? '#10b981' : (isDown ? '#ef4444' : '#f59e0b');
+        const icon = isUp ? 'bi-caret-up-fill' : (isDown ? 'bi-caret-down-fill' : 'bi-dash');
+        return `
+          <div class="stock-index-card">
+            <span class="stock-index-name">${name}</span>
+            <div class="stock-index-value">
+              <span>${p}</span>
+              <span class="stock-index-change" style="color: ${color};"><i class="bi ${icon}"></i> ${pct}%</span>
+            </div>
+          </div>
+        `;
+      };
+
+      const foreignDiff = ov.foreign ? (ov.foreign.diff || 0) : 0;
+      const foreignColor = foreignDiff >= 0 ? '#10b981' : '#ef4444';
+      const foreignText = foreignDiff >= 0 ? `+${foreignDiff} tỷ (Mua ròng)` : `${foreignDiff} tỷ (Bán ròng)`;
+
+      html += `
+        <div class="stock-market-bar">
+          ${renderIdx('VNINDEX', vnindex)}
+          ${renderIdx('VN30', vn30)}
+          ${renderIdx('HNX', hnx)}
+          ${renderIdx('UPCOM', upcom)}
+          <div class="stock-index-card">
+            <span class="stock-index-name">Độ Rộng Toàn Sàn</span>
+            <div style="font-size: 0.85rem; font-weight: 600; margin-top: 3px;">
+              <span style="color: #10b981;">🟢 ${ov.trend?.positive || 0}</span>
+              <span style="color: #f59e0b; margin: 0 4px;">🟡 ${ov.trend?.neutral || 0}</span>
+              <span style="color: #ef4444;">🔴 ${ov.trend?.negative || 0}</span>
+            </div>
+          </div>
+          <div class="stock-index-card">
+            <span class="stock-index-name">Khối Ngoại</span>
+            <div style="font-size: 0.85rem; font-weight: 700; color: ${foreignColor}; margin-top: 3px;">
+              ${foreignText}
+            </div>
+          </div>
         </div>
       `;
     }
 
-    return `
-      <div style="align-self: flex-start; width: 100%; background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.09); padding: 1.1rem 1.35rem; border-radius: 14px 14px 14px 2px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.07);">
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <span class="badge badge-info" style="font-size: 0.74rem;"><i class="bi bi-robot"></i> Skill AI Studio</span>
-            ${msg.skillId ? `<span class="badge badge-success" style="font-size: 0.74rem;"><i class="bi bi-cpu"></i> ${escapeHtml(msg.skillId)}</span>` : ''}
-            ${msg.hasLiveFinboxData ? `<span class="badge" style="background: rgba(16,185,129,0.2); color: #34d399; font-size: 0.72rem;"><i class="bi bi-broadcast"></i> Dữ liệu Finbox Live</span>` : ''}
-            <span style="font-size: 0.75rem; color: var(--text-muted);">${formatDateTime(msg.timestamp)}</span>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-            ${msg.savedFile ? `
-              <button class="btn" onclick="SkillsApp.previewOutputFile('${escapeHtml(msg.savedFile.relPath)}')" style="padding: 3px 9px; font-size: 0.76rem; background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: #34d399;">
-                <i class="bi bi-folder-check"></i> Đã lưu: ${escapeHtml(msg.savedFile.filename)} (Xem)
-              </button>
-            ` : `
-              <button class="btn" onclick="SkillsApp.saveChatMsgAsOutput(${idx})" style="padding: 3px 9px; font-size: 0.76rem;">
-                <i class="bi bi-file-earmark-plus"></i> Lưu vào /outputs (.md)
-              </button>
-            `}
-            <button class="btn" onclick="SkillsApp.copyChatMsg(${idx})" style="padding: 3px 9px; font-size: 0.76rem;">
-              <i class="bi bi-clipboard"></i> Copy Markdown
-            </button>
-          </div>
+    // Presets Bar
+    html += `
+      <div class="stock-presets-container">
+        <div class="stock-presets-header">
+          <span><i class="bi bi-funnel-fill" style="color: #6366f1;"></i> Chiến Lược Lọc Nhanh (1-Click Presets):</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Phiên giao dịch: <strong>${data?.latest_date || '20261026'}</strong></span>
         </div>
-
-        <div class="md-content" style="font-size: 0.9rem; line-height: 1.6;">
-          ${renderedHtml}
+        <div class="stock-presets-bar">
+          ${presets.map(p => `
+            <button class="stock-preset-btn ${screener.preset === p.id ? 'active' : ''}" onclick="SkillsApp.selectStockPreset('${p.id}')">
+              <i class="bi ${p.icon}"></i>
+              <span>${p.name}</span>
+              <span style="font-size: 0.68rem; opacity: 0.85; border-left: 1px solid rgba(255,255,255,0.15); padding-left: 5px;">${p.badge}</span>
+            </button>
+          `).join('')}
         </div>
       </div>
     `;
-  }
 
-  function handleChatDraft(val) {
-    state.chatDraft = val;
-  }
+    // Filter Controls Toolbar
+    html += `
+      <div class="stock-filter-toolbar">
+        <div class="stock-filter-inputs">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Sàn:</label>
+            <select class="stock-filter-select" onchange="SkillsApp.handleStockFloorChange(this.value)">
+              <option value="ALL" ${screener.floor === 'ALL' ? 'selected' : ''}>Tất cả sàn</option>
+              <option value="HOSE" ${screener.floor === 'HOSE' ? 'selected' : ''}>HOSE (HSX)</option>
+              <option value="HNX" ${screener.floor === 'HNX' ? 'selected' : ''}>HNX</option>
+              <option value="UPCOM" ${screener.floor === 'UPCOM' ? 'selected' : ''}>UPCOM</option>
+            </select>
+          </div>
 
-  function setChatSkillMode(mode) {
-    state.chatSkillMode = mode;
-  }
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">GTGD 20P:</label>
+            <select class="stock-filter-select" onchange="SkillsApp.handleStockLiquidityChange(this.value)">
+              <option value="0.3" ${screener.minLiquidity === 0.3 ? 'selected' : ''}>&ge; 300 triệu/ngày</option>
+              <option value="0.5" ${screener.minLiquidity === 0.5 ? 'selected' : ''}>&ge; 500 triệu/ngày</option>
+              <option value="1.0" ${screener.minLiquidity === 1.0 ? 'selected' : ''}>&ge; 1 tỷ VNĐ/ngày</option>
+              <option value="5.0" ${screener.minLiquidity === 5.0 ? 'selected' : ''}>&ge; 5 tỷ VNĐ/ngày</option>
+              <option value="10.0" ${screener.minLiquidity === 10.0 ? 'selected' : ''}>&ge; 10 tỷ VNĐ/ngày (Thanh khoản cao)</option>
+            </select>
+          </div>
 
-  function toggleChatAutoSave(checked) {
-    state.chatAutoSaveMd = Boolean(checked);
-  }
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Dải RSI:</label>
+            <input type="number" class="stock-filter-input" style="width: 55px;" value="${screener.minRsi}" onchange="state.stockScreener.minRsi=Number(this.value);SkillsApp.runStockScreen();" min="10" max="90">
+            <span style="color: var(--text-muted);">-</span>
+            <input type="number" class="stock-filter-input" style="width: 55px;" value="${screener.maxRsi}" onchange="state.stockScreener.maxRsi=Number(this.value);SkillsApp.runStockScreen();" min="10" max="90">
+          </div>
+        </div>
 
-  function useQuickPrompt(idx) {
-    const prompts = [
-      {
-        skill: 'vn-stock-advisor',
-        text: 'Tìm các mã cổ phiếu có tín hiệu Finbox trung lập hoặc tăng, thanh khoản tốt, kèm nhận định tổng quan thị trường hôm nay và lưu file .md'
-      },
-      {
-        skill: 'vn-stock-advisor',
-        text: 'Lọc các cổ phiếu Rating A+ hoặc A đang có tín hiệu bắt đáy (DIP) hoặc mua chuẩn trên sàn HSX, sắp xếp theo thanh khoản cao nhất'
-      },
-      {
-        skill: 'vn-stock-advisor',
-        text: 'Phân tích chi tiết 4 trụ cột Finbox cho các mã cổ phiếu FPT, VCB, PVS và khuyến nghị hành động'
-      },
-      {
-        skill: 'sprint-planning',
-        text: 'Hướng dẫn lập Sprint 4 Backlog và công thức Excel networkdays chuẩn theo skill sprint-planning'
-      }
-    ];
-    const item = prompts[idx];
-    if (!item) return;
-    state.chatSkillMode = item.skill;
-    state.chatDraft = item.text;
-    renderChatStudioTab();
-    const input = document.getElementById('chatStudioInput');
-    if (input) input.focus();
-  }
+        <div style="font-size: 0.82rem; color: var(--text-secondary);">
+          Tìm thấy: <strong style="color: #10b981; font-size: 0.95rem;">${data ? data.total_matched : '...'}</strong> mã cổ phiếu
+        </div>
+      </div>
+    `;
 
-  async function sendChatMessage() {
-    const input = document.getElementById('chatStudioInput');
-    const text = (input ? input.value : state.chatDraft || '').trim();
-    if (!text) {
-      showToast('Vui lòng nhập câu hỏi hoặc yêu cầu vào ô Chat!', 'warning');
+    // Loading State
+    if (screener.loading) {
+      html += `
+        <div style="padding: 3.5rem 1rem; text-align: center; background: var(--bg-glass-card); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+          <div class="spin-icon" style="font-size: 2rem; color: #10b981; margin-bottom: 0.85rem;"><i class="bi bi-arrow-clockwise"></i></div>
+          <div style="font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">Đang kết nối Finbox DCS Live &amp; Bóc tách Volume 10 phiên...</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Đang tính toán RSI, Cạn cung, Dòng tiền Cá mập và Điểm vào lệnh T+2.5</div>
+        </div>
+      `;
+      container.innerHTML = html;
       return;
     }
-    if (state.chatLoading) return;
 
-    const userMsgObj = {
-      id: 'u-' + Date.now(),
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString()
-    };
+    // Results Table
+    if (!data || !data.stocks || data.stocks.length === 0) {
+      html += `
+        <div style="padding: 3rem 1rem; text-align: center; background: var(--bg-glass-card); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+          <i class="bi bi-inbox" style="font-size: 2.2rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;"></i>
+          <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;">Không tìm thấy mã nào thỏa mãn toàn bộ tiêu chí</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Hãy thử hạ mức thanh khoản hoặc nới rộng dải RSI quanh 40 (ví dụ 35 - 46).</div>
+        </div>
+      `;
+      container.innerHTML = html;
+      return;
+    }
 
-    state.chatMessages.push(userMsgObj);
-    state.chatDraft = '';
-    state.chatLoading = true;
-    persistChatHistory();
-    renderChatStudioTab();
+    html += `
+      <div class="stock-table-card">
+        <div class="stock-table-responsive">
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">STT</th>
+                <th>Mã CP</th>
+                <th>Ngành</th>
+                <th>Giá (nghìn đ)</th>
+                <th>RSI Ngày</th>
+                <th>Xu Hướng</th>
+                <th>Tín Hiệu</th>
+                <th>Cạn Cung 10P</th>
+                <th>Dòng Tiền Gom</th>
+                <th>Vùng Mua T0</th>
+                <th>Chặn Hòa Vốn</th>
+                <th>Cắt Lỗ</th>
+                <th>Mục Tiêu T+</th>
+                <th style="text-align: center;">Hành Động</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.stocks.map((s, idx) => {
+                const plan = s.trade_plan || {};
+                const rsiVal = s.rsi !== null && s.rsi !== undefined ? Number(s.rsi).toFixed(1) : '-';
+                const rsiBadgeColor = Number(rsiVal) <= 35 ? '#8b5cf6' : (Number(rsiVal) <= 45 ? '#10b981' : '#f59e0b');
+                
+                // Mini volume bars
+                const volBars = (s.vol_pcts_10p || []).slice(0, 8).map(v => {
+                  const h = Math.min(Math.max((v / 200) * 22, 3), 22);
+                  const cls = v < 80 ? 'low' : (v > 120 ? 'high' : '');
+                  return `<div class="stock-vol-bar ${cls}" style="height: ${h}px;" title="Vol: ${v}% MA20"></div>`;
+                }).join('');
+
+                const accumRatio = s.vol_accumulation_ratio ? `${s.vol_accumulation_ratio}x` : '-';
+                const accumBadge = s.vol_accumulation_ratio >= 1.5 
+                  ? `<span style="color: #10b981; font-weight: 600;">${accumRatio} (Xanh &gt; Đỏ)</span>` 
+                  : `<span style="color: var(--text-muted);">${accumRatio}</span>`;
+
+                return `
+                  <tr>
+                    <td style="text-align: center; color: var(--text-muted); font-size: 0.75rem;">${idx + 1}</td>
+                    <td>
+                      <div class="stock-ticker-badge" onclick="SkillsApp.openStockDetailModal('${s.ticker}')" title="Bấm để xem phân tích 360°">
+                        <span>${s.ticker}</span>
+                        <span style="font-size: 0.68rem; font-weight: 500; color: var(--text-muted); padding: 1px 4px; border-radius: 4px; background: rgba(255,255,255,0.06);">${s.floor}</span>
+                      </div>
+                    </td>
+                    <td style="color: var(--text-secondary); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${s.industry}">${s.industry}</td>
+                    <td>
+                      <span style="font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem;">${s.price}</span>
+                    </td>
+                    <td>
+                      <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background: rgba(16,185,129,0.12); color: ${rsiBadgeColor}; font-family: var(--font-mono); font-weight: 700;">${rsiVal}</span>
+                    </td>
+                    <td>
+                      <span style="font-weight: 600; color: ${s.trend === 'TĂNG' ? '#10b981' : (s.trend === 'GIẢM' ? '#ef4444' : '#f59e0b')};">${s.trend}</span>
+                    </td>
+                    <td>
+                      <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; background: rgba(99,102,241,0.15); color: #a5b4fc; font-size: 0.72rem; font-weight: 600;">${s.signal || 'Chờ Mua'}</span>
+                    </td>
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 0.45rem;">
+                        <div class="stock-vol-bars">${volBars}</div>
+                        <div>
+                          ${s.is_dry_supply ? '<span class="badge-cung-can">⭐ Cạn Cung</span>' : '<span style="font-size: 0.7rem; color: var(--text-muted);">' + (s.latest_vol_pct || 0) + '%</span>'}
+                        </div>
+                      </div>
+                    </td>
+                    <td style="font-size: 0.78rem;">
+                      ${accumBadge}
+                    </td>
+                    <td style="font-family: var(--font-mono); font-weight: 600; color: #10b981;">
+                      ${plan.entry_zone || '-'}
+                    </td>
+                    <td style="font-family: var(--font-mono); color: #f59e0b;">
+                      ${plan.breakeven_trigger || '-'} (+5%)
+                    </td>
+                    <td style="font-family: var(--font-mono); color: #ef4444;">
+                      ${plan.stop_loss || '-'} (-5.5%)
+                    </td>
+                    <td style="font-family: var(--font-mono); font-weight: 700; color: #3b82f6;">
+                      ${plan.target_1 || '-'} (+8%)
+                    </td>
+                    <td style="text-align: center;">
+                      <button class="btn" onclick="SkillsApp.openStockDetailModal('${s.ticker}')" style="padding: 3px 8px; font-size: 0.75rem; border-color: rgba(99,102,241,0.4);" title="Xem chi tiết 360°">
+                        <i class="bi bi-search"></i> 360°
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  async function openStockDetailModal(ticker, forceRefresh = false) {
+    const modal = document.getElementById('stockDetailModal');
+    const body = document.getElementById('stockDetailModalBody');
+    if (!modal || !body) return;
+
+    modal.style.display = 'flex';
+    body.innerHTML = `
+      <div style="padding: 3rem 1rem; text-align: center;">
+        <div class="spin-icon" style="font-size: 2rem; color: #10b981; margin-bottom: 0.5rem;"><i class="bi bi-arrow-clockwise"></i></div>
+        <div style="font-weight: 600;">Đang nạp dữ liệu chi tiết mã ${ticker}${forceRefresh ? ' (Làm mới từ Live API)...' : '...'}</div>
+      </div>
+    `;
 
     try {
-      const res = await fetch('/api/chat', {
+      const url = `/api/stocks/detail?ticker=${encodeURIComponent(ticker)}${forceRefresh ? '&force=true' : ''}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data || !data.ok) {
+        body.innerHTML = `<div style="color: #ef4444; padding: 1.5rem;">${data?.error || 'Không tìm thấy dữ liệu'}</div>`;
+        return;
+      }
+
+      state.stockScreener.selectedTickerDetail = data;
+      const d = data.detail || {};
+      const plan = data.trade_plan || {};
+      const hist = data.signals_history || [];
+
+      document.getElementById('stockDetailIcon').textContent = ticker;
+      document.getElementById('stockDetailTitle').textContent = `${ticker} - ${d.company || d.name || ticker}`;
+      const storageBadge = data.from_sqlite ? '💾 SQLite /data/stock_screener.db' : '⚡ Finbox Live';
+      document.getElementById('stockDetailSubtitle').innerHTML = `${d.floor || 'HOSE'} • Ngành: ${d.industry || 'Chung'} • Rating: ${d.rating || 'A'} • <span style="color: #38bdf8;">🕒 ${data.updated_at || 'Mới cập nhật'}</span> <span class="badge badge-info" style="font-size: 0.65rem; margin-left: 4px;">${storageBadge}</span>`;
+
+      let content = `
+        <div class="stock-detail-grid">
+          <!-- Card 1: Kế Hoạch Giao Dịch 4-Pillar Pro -->
+          <div class="stock-detail-section" style="border-left: 3px solid #10b981;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: #10b981; font-size: 0.9rem;"><i class="bi bi-shield-check"></i> Kế Hoạch Giao Dịch &amp; Quản Trị Rủi Ro</strong>
+              <span class="badge badge-success">Kỷ luật +5%</span>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Giá Hiện Tại</span>
+              <strong style="font-family: var(--font-mono); font-size: 1.05rem;">${d.priceFlat || plan.current_price}</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Vùng Mua Khuyến Nghị</span>
+              <strong style="color: #10b981; font-family: var(--font-mono);">${plan.entry_zone || '-'}</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Chặn Hòa Vốn (+5% Breakeven)</span>
+              <strong style="color: #f59e0b; font-family: var(--font-mono);">${plan.breakeven_trigger} (Nâng SL về giá mua)</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Cắt Lỗ Kỷ Luật (Stop Loss)</span>
+              <strong style="color: #ef4444; font-family: var(--font-mono);">${plan.stop_loss} (${plan.stop_loss_pct}%)</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Mục Tiêu 1 (Chốt lời 50%)</span>
+              <strong style="color: #3b82f6; font-family: var(--font-mono);">${plan.target_1} (+${plan.target_1_pct}%)</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Mục Tiêu 2 (Sóng hồi)</span>
+              <strong style="color: #8b5cf6; font-family: var(--font-mono);">${plan.target_2} (+${plan.target_2_pct}%)</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Tỷ lệ Risk / Reward (R:R)</span>
+              <strong style="color: #10b981; font-family: var(--font-mono);">${plan.rr_ratio_2}:1 (Ưu thế cao)</strong>
+            </div>
+          </div>
+
+          <!-- Card 2: Dòng Tiền Lớn (TopInvest Big Boys) -->
+          <div class="stock-detail-section" style="border-left: 3px solid #6366f1;">
+            <strong style="color: #6366f1; font-size: 0.9rem;"><i class="bi bi-water"></i> Dấu Chân Dòng Tiền Lớn (Cá Mập)</strong>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Điểm Tích Lũy Finbox</span>
+              <strong style="font-family: var(--font-mono); color: ${(d.diem_tl || 0) >= 0 ? '#10b981' : '#ef4444'};">${d.diem_tl || 0} điểm</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Sức Mạnh Giá (RS)</span>
+              <strong style="font-family: var(--font-mono);">${d.rs || '-'} (Rank: ${d.rs_rating || '-'})</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Tự Doanh Mua Ròng (5P / 20P)</span>
+              <strong style="font-family: var(--font-mono);">${d.proprietary_5 || 0} tỷ / ${d.proprietary_20 || 0} tỷ</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Khối Ngoại Mua Ròng (5P / 20P)</span>
+              <strong style="font-family: var(--font-mono);">${d.foreign_5 || 0} tỷ / ${d.foreign_20 || 0} tỷ</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">GTGD Trung Bình 20 Phiên</span>
+              <strong style="font-family: var(--font-mono);">${d.tbgtdd || 0} tỷ VNĐ/phiên</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Biến Động Giá (5P / 20P / 60P)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.78rem;">${((d.pricePercent5||0)*100).toFixed(1)}% / ${((d.pricePercent20||0)*100).toFixed(1)}% / ${((d.pricePercent60||0)*100).toFixed(1)}%</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Định Giá & Sức Khỏe (Simplize Snowflake) -->
+          <div class="stock-detail-section" style="border-left: 3px solid #f59e0b;">
+            <strong style="color: #f59e0b; font-size: 0.9rem;"><i class="bi bi-pie-chart-fill"></i> Định Giá Cơ Bản &amp; Tài Chính (Simplize)</strong>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">P/E Hiện Tại</span>
+              <strong style="font-family: var(--font-mono);">${d.pe ? Number(d.pe).toFixed(1) : '-'}x</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">P/B Hiện Tại</span>
+              <strong style="font-family: var(--font-mono);">${d.pb ? Number(d.pb).toFixed(2) : '-'}x</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Tỷ Suất ROE</span>
+              <strong style="font-family: var(--font-mono);">${d.roe ? (Number(d.roe) * 100).toFixed(1) + '%' : '-'}</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Vốn Hóa Thị Trường</span>
+              <strong style="font-family: var(--font-mono);">${d.vonhoa ? Number(d.vonhoa).toLocaleString() + ' tỷ' : '-'}</strong>
+            </div>
+            <div class="stock-detail-metric-row">
+              <span style="color: var(--text-secondary);">Nợ / VCSH</span>
+              <strong style="font-family: var(--font-mono);">${d.noVCSH !== undefined && d.noVCSH !== null ? Number(d.noVCSH).toFixed(2) : '-'}</strong>
+            </div>
+          </div>
+
+          <!-- Card 4: Lịch Sử Tín Hiệu Finbox -->
+          <div class="stock-detail-section" style="border-left: 3px solid #06b6d4;">
+            <strong style="color: #06b6d4; font-size: 0.9rem;"><i class="bi bi-clock-history"></i> Lịch Sử Lệnh Finbox Gần Nhất</strong>
+            ${hist.length > 0 ? `
+              <div style="font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                ${hist.slice(0, 4).map(h => {
+                  const pnl = h.profit !== undefined ? `${(Number(h.profit) * 100).toFixed(1)}%` : '-';
+                  const isWin = Number(h.profit) >= 0;
+                  return `
+                    <div style="display: flex; justify-content: space-between; padding: 4px 6px; background: rgba(255,255,255,0.02); border-radius: 4px;">
+                      <span><strong>${h.signal || 'BUY'}</strong> (${h.buyDate})</span>
+                      <span>Mua: \`${h.buyPrice}\` &rarr; Bán: \`${h.sellPrice || '-'}\`</span>
+                      <strong style="color: ${isWin ? '#10b981' : '#ef4444'};">${pnl}</strong>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : '<div style="font-size: 0.8rem; color: var(--text-muted);">Chưa có lịch sử lệnh đóng vị thế gần đây</div>'}
+          </div>
+        </div>
+
+        ${d.info ? `
+          <div style="margin-top: 1rem; padding: 0.85rem; background: rgba(255,255,255,0.02); border-radius: 8px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+            <strong style="color: var(--text-primary); display: block; margin-bottom: 0.25rem;"><i class="bi bi-info-circle"></i> Giới thiệu doanh nghiệp:</strong>
+            ${escapeHtml(d.info)}
+          </div>
+        ` : ''}
+      `;
+
+      body.innerHTML = content;
+    } catch (err) {
+      body.innerHTML = `<div style="color: #ef4444; padding: 1.5rem;">Lỗi tải dữ liệu: ${err.message}</div>`;
+    }
+  }
+
+  function closeStockDetailModal() {
+    const modal = document.getElementById('stockDetailModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function copyStockTradePlan() {
+    const detail = state.stockScreener.selectedTickerDetail;
+    if (!detail) {
+      showToast('Chưa có thông tin mã để sao chép', 'warning');
+      return;
+    }
+    const ticker = detail.ticker;
+    const plan = detail.trade_plan || {};
+    const text = `🎯 KẾ HOẠCH GIAO DỊCH 4-PILLAR PRO: ${ticker}\n` +
+      `• Vùng Mua: ${plan.entry_zone}\n` +
+      `• Chặn Hòa Vốn (+5% Breakeven): ${plan.breakeven_trigger}\n` +
+      `• Cắt Lỗ (-5.5%): ${plan.stop_loss}\n` +
+      `• Mục Tiêu 1 (+8%): ${plan.target_1}\n` +
+      `• Mục Tiêu 2 (+16%): ${plan.target_2}\n` +
+      `• Tỷ lệ R:R: ${plan.rr_ratio_2}:1`;
+    copyToClipboard(text, `Đã sao chép kế hoạch giao dịch ${ticker}!`);
+  }
+
+  async function exportStockScreenerReport() {
+    const screener = state.stockScreener;
+    if (!screener.data || !screener.data.stocks || screener.data.stocks.length === 0) {
+      showToast('Chưa có dữ liệu để xuất báo cáo. Vui lòng bấm Lọc lại.', 'warning');
+      return;
+    }
+
+    try {
+      showToast('Đang xuất báo cáo Markdown vào /outputs/...', 'info');
+      const res = await fetch('/api/stocks/export-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
-          skillId: state.chatSkillMode,
-          history: state.chatMessages.slice(-8).map(m => ({ role: m.role, content: m.content })),
-          autoSaveOutput: state.chatAutoSaveMd,
-          envVars: state.userEnvValues
+          presetTitle: screener.preset,
+          stocks: screener.data.stocks,
+          marketSummary: screener.data.market_summary
         })
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Lỗi máy chủ khi xử lý Chat');
-      }
-
-      const botMsgObj = {
-        id: 'a-' + Date.now(),
-        role: 'assistant',
-        skillId: data.skillId,
-        model: data.model,
-        content: data.reply,
-        savedFile: data.savedFile || null,
-        hasLiveFinboxData: data.hasLiveFinboxData,
-        timestamp: new Date().toISOString()
-      };
-
-      state.chatMessages.push(botMsgObj);
-      persistChatHistory();
-
-      if (data.savedFile) {
-        showToast(`Đã tự động lưu báo cáo ${data.savedFile.filename} vào Kho Outputs!`, 'success');
-        await fetchOutputsData(false);
+      const ret = await res.json();
+      if (ret && ret.ok) {
+        showToast(`Đã xuất báo cáo thành công: ${ret.filename}`, 'success');
+        fetchOutputsData(false);
+      } else {
+        showToast(ret.error || 'Lỗi khi xuất file báo cáo', 'error');
       }
     } catch (err) {
-      state.chatMessages.push({
-        id: 'err-' + Date.now(),
-        role: 'assistant',
-        skillId: state.chatSkillMode,
-        content: `### ❌ Không thể thực thi yêu cầu\n\nChi tiết lỗi: \`${err.message}\``,
-        timestamp: new Date().toISOString()
-      });
-      showToast('Lỗi khi xử lý Chat: ' + err.message, 'error');
-    } finally {
-      state.chatLoading = false;
-      renderChatStudioTab();
+      showToast('Lỗi xuất báo cáo: ' + err.message, 'error');
     }
-  }
-
-  async function runPythonSkillDirect() {
-    const skillToRun = state.chatSkillMode !== 'auto'
-      ? state.chatSkillMode
-      : (state.currentSkillId || 'vn-stock-advisor');
-
-    state.chatLoading = true;
-    state.chatMessages.push({
-      id: 'u-run-' + Date.now(),
-      role: 'user',
-      content: `Thực thi trực tiếp lệnh: python3 run_skill.py ${skillToRun}`,
-      timestamp: new Date().toISOString()
-    });
-    renderChatStudioTab();
-
-    try {
-      const res = await fetch('/api/skills/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          skillId: skillToRun,
-          envVars: state.userEnvValues
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Không thể chạy script');
-      }
-
-      const newFilesMd = (data.newFiles && data.newFiles.length > 0)
-        ? `\n\n### 📁 File Output mới sinh ra:\n` + data.newFiles.map(f => `- **${f.name}** (\`${f.relPath}\`)`).join('\n')
-        : '';
-
-      state.chatMessages.push({
-        id: 'a-run-' + Date.now(),
-        role: 'assistant',
-        skillId: skillToRun,
-        content: `### ⚡ Kết Quả Thực Thi \`python3 run_skill.py ${skillToRun}\`\n\n\`\`\`text\n${data.output || 'Hoàn tất thực thi.'}\n\`\`\`${newFilesMd}`,
-        timestamp: new Date().toISOString()
-      });
-      persistChatHistory();
-      await fetchOutputsData(false);
-      showToast(`Đã chạy xong Skill ${skillToRun}!`, 'success');
-    } catch (err) {
-      showToast('Lỗi chạy Skill: ' + err.message, 'error');
-    } finally {
-      state.chatLoading = false;
-      renderChatStudioTab();
-    }
-  }
-
-  async function syncEnvToServer() {
-    try {
-      const envContent = generateEnvText('global');
-      const res = await fetch('/api/env/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ envContent })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Lỗi đồng bộ .env');
-      }
-      showToast(data.message || 'Đã đồng bộ .env xuống Server thành công!', 'success');
-    } catch (err) {
-      showToast('Không thể đồng bộ .env: ' + err.message, 'error');
-    }
-  }
-
-  function copyStudioBridgePrompt() {
-    const input = document.getElementById('chatStudioInput');
-    const rawText = (input ? input.value : state.chatDraft || '').trim();
-    const targetSkill = state.chatSkillMode !== 'auto'
-      ? state.chatSkillMode
-      : (state.currentSkillId || 'vn-stock-advisor');
-
-    const promptToCopy = rawText
-      ? `Load skill ${targetSkill} (/skills/${targetSkill}/SKILL.md), thực hiện yêu cầu sau và lưu output file .md vào /outputs/ giúp tôi nhé:\n\n${rawText}`
-      : `Load skill ${targetSkill} (/skills/${targetSkill}/SKILL.md), tuân thủ đúng định dạng output mô tả trong skill và lưu kết quả vào thư mục /outputs/ giúp tôi nhé.`;
-
-    copyToClipboard(
-      promptToCopy,
-      'Đã Copy Lệnh Chuẩn! Bạn chỉ cần nhấn Ctrl+V vào khung Chat của AI Studio bên trái.'
-    );
-  }
-
-  async function saveChatMsgAsOutput(idx) {
-    const msg = state.chatMessages[idx];
-    if (!msg || !msg.content) return;
-    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const timeTag = new Date().toTimeString().slice(0, 5).replace(':', '');
-    const prefix = (msg.skillId || 'chat_output').replace(/-/g, '_');
-    const filename = `${prefix}_${dateTag}_${timeTag}.md`;
-
-    try {
-      const res = await fetch('/api/outputs/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, content: msg.content })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Lỗi lưu file');
-      msg.savedFile = {
-        filename: data.filename,
-        relPath: data.filename,
-        url: data.url
-      };
-      persistChatHistory();
-      await fetchOutputsData(false);
-      renderChatStudioTab();
-      showToast(`Đã lưu câu trả lời thành file ${data.filename} trong Kho Outputs!`, 'success');
-    } catch (err) {
-      showToast('Lỗi lưu file: ' + err.message, 'error');
-    }
-  }
-
-  function copyChatMsg(idx) {
-    const msg = state.chatMessages[idx];
-    if (!msg || !msg.content) return;
-    copyToClipboard(msg.content, 'Đã sao chép toàn bộ nội dung Markdown của câu trả lời!');
-  }
-
-  function clearChatHistory() {
-    state.chatMessages = [state.chatMessages[0]].filter(Boolean);
-    persistChatHistory();
-    renderChatStudioTab();
-    showToast('Đã làm mới lịch sử trò chuyện!', 'info');
   }
 
   // Public API exposed on window
@@ -3146,6 +3583,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     applyDefaultValue,
     togglePasswordVisibility,
     copyToClipboard,
+    copySkillStandardPrompt,
     exportEnvFile,
     copySkillEnv,
     exportSkillEnv: (id) => exportEnvFile('skill', id),
@@ -3170,6 +3608,7 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
       renderExplorerTab();
     },
     switchTab,
+    openAllOutputs,
     renderOutputsTab,
     refreshOutputs: () => fetchOutputsData(true),
     handleOutputSearch,
@@ -3181,25 +3620,28 @@ Tại đây bạn có **2 chế độ kết nối linh hoạt**:
     downloadOutputFile,
     openSkillOutputs,
     copyActivePreview,
+    handleLiveSplitEdit,
     switchPreviewMode,
+    toggleTextWordWrap,
+    toggleLineNumbers,
     switchExcelSheet,
+    switchExcelViewEngine,
+    handleExcelTableSearch,
     closeOutputPreviewModal,
     openSaveOutputModal,
     closeSaveOutputModal,
     submitSaveOutput,
-    // Chat Studio API
-    renderChatStudioTab,
-    handleChatDraft,
-    setChatSkillMode,
-    toggleChatAutoSave,
-    useQuickPrompt,
-    sendChatMessage,
-    runPythonSkillDirect,
-    syncEnvToServer,
-    copyStudioBridgePrompt,
-    saveChatMsgAsOutput,
-    copyChatMsg,
-    clearChatHistory
+    // Stock Screener Pro API
+    openStockScreener,
+    runStockScreen,
+    selectStockPreset,
+    handleStockFloorChange,
+    handleStockLiquidityChange,
+    renderStockScreener,
+    openStockDetailModal,
+    closeStockDetailModal,
+    copyStockTradePlan,
+    exportStockScreenerReport
   };
 
   // Run on DOM ready

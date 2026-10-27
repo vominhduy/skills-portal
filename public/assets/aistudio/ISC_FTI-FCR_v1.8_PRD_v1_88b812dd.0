@@ -1,0 +1,2256 @@
+﻿1.0-BM/PM/HDCV/FTEL — PRD Standard v1.8
+
+
+  
+
+ 
+FCR v1.8
+PRD – Product Requirements Document
+ 
+Mã hiệu
+	1.0-BM/PM/HDCV/FTEL
+	Phiên bản
+	1.2
+	
+
+ 
+REVISION HISTORY
+[A]: Add – Thêm mới    [U]: Update – Cập nhật, thay đổi    [D]: Delete – Xóa
+Date
+	Version
+	Author
+	Reviewer
+	Approver
+	Change Description
+	21/10/2026
+	1.0
+	OanhNTK35
+	DuyVM4
+	LinhND87
+	[A] Khởi tạo
+* Tạo yêu cầu - Quy tắc chung
+* Tạo yêu cầu - Leasedline
+* Tạo yêu cầu thanh lý DV chưa triển khai
+* Xem chi tiết phiếu yêu cầu chưa triển khai
+* Xem chi tiết phiếu yêu cầu - chung
+* Email
+	23/10/2026
+	1.1
+	OanhNTK35
+	 
+	 
+	[U] Tách Chuyển pháp nhân khỏi Tạo yêu cầu – Quy tắc chung thành chức năng riêng FR02 – Tạo yêu cầu chuyển pháp nhân; đánh lại số FR, BR, US, mục 8.x
+	MỤC LỤC
+PART A — BUSINESS CONTEXT & RATIONALE        3
+1.        EXECUTIVE SUMMARY – TỔNG QUAN SẢN PHẨM        3
+2.        GOALS & SUCCESS METRICS – MỤC TIÊU SẢN PHẨM/DỰ ÁN        3
+2.1 Mục tiêu cụ thể (đo được)        4
+2.2 Thuật ngữ, từ ngữ viết tắt        4
+PART B — USERS, SCOPE & REQUIREMENTS        5
+3.        PERSONAS        5
+4.        SCOPES        5
+5.        BUSINESS PROCESS        6
+5.1 Workflow        7
+5.2 Mô tả các bước        7
+6.        USER STORIES & ACCEPTANCE CRITERIA        7
+6.0 Quy ước ID — AC ID Convention (bắt buộc tuân thủ)        8
+6.1 Primary user stories        8
+6.2 Acceptance Criteria (N/A)        9
+7.        FEATURE CATALOGUE  – DANH SÁCH CHỨC NĂNG        9
+7.2 Feature & Requirement Traceability        10
+7.3 Ma trận phân quyền        10
+8.        FEATURE DETAIL - ĐẶC TẢ CHỨC NĂNG CHI TIẾT        11
+8.1 FR01 — Tạo yêu cầu – Quy tắc chung        12
+8.1.1 Business Rules        12
+8.1.2 Business Workflow / Activity Flow (N/A)        13
+8.1.3 Các bước thực hiện (N/A)        13
+8.1.4 UI / Field Spec        14
+8.2 FR02 — Tạo yêu cầu - Leasedline        14
+8.2.1 Business Rules        15
+8.2.2 Business Workflow / Activity Flow        17
+8.2.3 Các bước thực hiện        23
+8.2.4 UI / Field Spec        28
+8.3 FR03 — Tạo yêu cầu thanh lý DV chưa triển khai        41
+8.5.1 Business Rules        42
+8.5.2 Business Workflow / Activity Flow        43
+8.5.3 Các bước thực hiện        45
+8.5.4 UI / Field Spec        46
+8.4 FR04 — Xem chi tiết phiếu yêu cầu Thanh lý DV chưa triển khai        51
+8.6.1 Business Rules (N/A)        52
+8.6.2 Business Workflow / Activity Flow (N/A)        52
+8.6.3 Các bước thực hiện (N/A)        52
+8.6.4 UI / Field Spec        52
+8.5 FR05 — Xem chi tiết phiếu yêu cầu - chung        56
+8.8.1 Business Rules        57
+8.8.2 Business Workflow / Activity Flow        59
+8.8.3 Các bước thực hiện        59
+8.8.4 UI / Field Spec        59
+8.7 FR06 — Email        61
+9.        NON-FUNCTIONAL REQUIREMENTS (N/A)        63
+10.        ARTIFACT REFERENCE        64
+PART C — GOVERNANCE        65
+11.        DEFINITION OF DONE – TIÊU CHÍ NGHIỆM THU        66
+PART D — TEMPLATE META & USAGE        66
+12.        HƯỚNG DẪN SỬ DỤNG TEMPLATE        67
+ 
+ 
+PART A — BUSINESS CONTEXT & RATIONALE
+1. EXECUTIVE SUMMARY – TỔNG QUAN SẢN PHẨM
+ 
+Product/Project Name
+	FCR v1.8
+	PO/Sponsor
+	 
+	Description
+	Bổ sung và mở rộng chức năng tạo, xem và xử lý yêu cầu trên FCR: thông tin tạo phiếu, yêu cầu Leasedline (BMO), yêu cầu thanh lý dịch vụ chưa triển khai, phê duyệt/thực hiện yêu cầu theo quy trình, và email nhắc CSM upload tài liệu.
+	Business Need
+	Màn hình tạo yêu cầu chưa có đủ trường thông tin để tạo phiếu lưu (PL) tương ứng bên CM; mã PL bên CM đang hiển thị N/A.
+	Expected Outcomes
+	• Phiếu lưu bên CM có đủ thông tin sau khi yêu cầu được tạo. • Yêu cầu Leasedline và thanh lý dịch vụ chưa triển khai được tạo và xử lý trên FCR theo quy trình đã cài đặt. • CSM nhận nhắc nhở upload tài liệu sau khi phiếu hoàn tất.
+	Target Users/Customers
+	• Người dùng được phân quyền tạo yêu cầu. • Người thực hiện yêu cầu (role được phân công ở từng bước quy trình). • CSM.
+	In-scope / High-level Scope
+	• Bổ sung trường thông tin khi tạo yêu cầu (FR01). • Tạo yêu cầu chuyển pháp nhân cho tất cả dịch vụ (FR02). • Tạo yêu cầu BMO cho Leasedline (FR03). • Tạo yêu cầu thanh lý dịch vụ chưa triển khai (FR04). • Xem chi tiết và xử lý phiếu yêu cầu thanh lý dịch vụ chưa triển khai (FR05). • Phê duyệt/xác nhận/thực hiện yêu cầu và xem tiến trình phiếu BMO (FR06). • Email nhắc CSM upload tài liệu (FR07).
+	Out of Scope
+	• Xây tính năng quản lý danh mục nguyên nhân trên FCR (phê duyệt, thêm mới, xoá); danh mục do ISC cập nhật khi nhận yêu cầu. • Quản lý hiệu lực/trạng thái và audit log cho nguyên nhân. 
+	Impact if Not Done
+	 
+	 
+
+
+ 
+2. GOALS & SUCCESS METRICS – MỤC TIÊU SẢN PHẨM/DỰ ÁN
+ 
+2.1 Mục tiêu cụ thể (đo được)
+ 
+ID
+	Goal Type
+	Goals
+	Success Metrics/KPI
+	Baseline
+	Timeframe
+	G-01
+	Product Goal
+	Bổ sung đủ trường thông tin khi tạo yêu cầu để tạo PL tương ứng bên CM
+	Mã PL bên CM hiển thị đầy đủ (không còn N/A)
+	Mã PL bên CM hiển thị N/A
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+2.2 Thuật ngữ, từ ngữ viết tắt
+ID
+	Thuật ngữ
+	Mô tả
+	1
+	BMO
+	Phiếu yêu cầu BMO
+	2
+	YCTL
+	Yêu cầu thanh lý
+	3
+	CPN
+	Chuyển pháp nhân
+	4
+	PL
+	Mã dịch vụ PL
+	5
+	HĐ
+	Hợp đồng
+	6
+	LL
+	Leasedline
+	7
+	IDC
+	Hệ thống IDC (job thanh lý tự động)
+	 
+ 
+ 
+ 
+ 
+ 
+ 
+PART B — USERS, SCOPE & REQUIREMENTS
+3. PERSONAS
+ 
+Persona
+	Description
+	Business Goals
+	Pain Points
+	Key Activities
+	Frequency
+	Người tạo yêu cầu
+	Người dùng hệ thống được phân quyền tạo yêu cầu
+	Tạo đủ yêu cầu và phiếu tương ứng bên CM
+	 
+	Tạo yêu cầu, chọn loại yêu cầu (thanh lý, leasedline, …)
+	 
+	Người thực hiện yêu cầu
+	Người có role được phân công ở từng bước quy trình
+	Xử lý yêu cầu đúng quy trình đã cài đặt
+	 
+	Xem chi tiết phiếu, phê duyệt/xác nhận/thực hiện yêu cầu
+	 
+	CSM
+	Người phụ trách khách hàng, nhận yêu cầu bổ sung tài liệu
+	Hoàn tất hồ sơ tài liệu của yêu cầu
+	 
+	Upload tài liệu sau khi phiếu hoàn tất
+	 
+	Hệ thống IDC
+	Tiến trình tự động
+	Thực hiện job thanh lý tự động
+	 
+	Thanh lý tự động theo điều kiện phiếu
+	 
+	 
+ 
+ 
+ 
+ 
+ 
+4. SCOPES
+In-scope / High-level Scope
+	• Tạo yêu cầu: bổ sung trường thông tin, chuyển pháp nhân, Leasedline (BMO), thanh lý dịch vụ chưa triển khai. • Xem chi tiết và xử lý phiếu yêu cầu thanh lý dịch vụ chưa triển khai. • Phê duyệt/xác nhận/thực hiện yêu cầu theo quy trình đã cài đặt (thanh lý, chuyển pháp nhân, tạm ngưng, khôi phục, chuyển X-connect). • Email nhắc CSM upload tài liệu.
+	Out of Scope
+	• Quản lý danh mục nguyên nhân trên FCR (phê duyệt, thêm mới, xoá). • Quản lý hiệu lực/trạng thái và audit log của nguyên nhân.
+	Tích hợp với các hệ thống khác
+	CM (phiếu lưu bên CM); IDC (job thanh lý tự động); hệ thống email
+	Đơn vị chủ trì / phối hợp
+	 
+	 
+
+
+ 
+5. BUSINESS PROCESS
+5.1 Workflow
+Mô tả ở chức năng số 08
+ 
+5.2 Mô tả các bước 
+Mô tả ở chức năng số 08
+ 
+
+
+ 
+6. USER STORIES & ACCEPTANCE CRITERIA
+6.0 Quy ước ID — AC ID Convention (bắt buộc tuân thủ)
+Thành phần
+	Ý nghĩa
+	AC-{US}.{Scenario}.{Case}
+	{US}: số thứ tự User Story tương ứng (01, 02...). {Scenario}: nhóm điều kiện/kịch bản trong US đó (1, 2...). {Case}: số thứ tự case cụ thể trong scenario (01, 02...).
+	Ví dụ: AC-02.1.01
+	US02, Scenario 1, Case 01 — case đầu tiên của kịch bản thứ 1 thuộc User Story 02.
+	Nhãn màu (✅❌⚠️)
+	✅ Happy Path (nền xanh) — ❌ Negative/Lỗi (nền đỏ) — ⚠️ Edge Case (nền vàng). Bắt buộc mỗi Scenario có tối thiểu 1 Happy Path.
+	 
+6.1 Primary user stories
+ID
+	Priority
+(MoSCoW)
+	As a...
+	I want to...
+	So that...
+	AC liên quan
+	US01
+	 
+	Người tạo yêu cầu
+	bổ sung đủ trường thông tin khi tạo yêu cầu (nhóm nguyên nhân, nguyên nhân chi tiết, upload phụ lục)
+	PL tương ứng bên CM được tạo đầy đủ thông tin
+	FR01
+	US02
+	 
+	Người tạo yêu cầu
+	tạo yêu cầu chuyển pháp nhân cho tất cả dịch vụ, thực hiện CPN theo ngày đề nghị
+	chuyển pháp nhân đúng thời điểm, không phát sinh xung đột với các phiếu khác
+	FR02
+	US03
+	 
+	Người tạo yêu cầu
+	tạo yêu cầu BMO khi tạo phiếu Thay đổi thông tin, Tạm ngưng, Khôi phục, Thanh lý Leasedline
+	xử lý được yêu cầu Leasedline trên FCR
+	FR03
+	US04
+	 
+	Người tạo yêu cầu
+	tạo yêu cầu thanh lý dịch vụ chưa triển khai cho HĐ/PL đã cấp số
+	thanh lý được dịch vụ chưa triển khai
+	FR04
+	US05
+	 
+	Người thực hiện yêu cầu
+	xem chi tiết và xử lý phiếu yêu cầu thanh lý theo quy trình đã cài đặt
+	yêu cầu được xử lý đúng quy trình
+	FR05
+	US06
+	 
+	Người thực hiện yêu cầu
+	phê duyệt/xác nhận/thực hiện yêu cầu và xem tiến trình phiếu BMO
+	yêu cầu được hoàn tất
+	FR06
+	US07
+	 
+	CSM
+	nhận email nhắc upload tài liệu khi phiếu đã hoàn tất
+	hồ sơ tài liệu được bổ sung kịp thời
+	FR07
+	6.2 Acceptance Criteria (N/A)
+Mô tả ở chi tiết các chức năng mục số 8
+
+
+ 
+7. FEATURE CATALOGUE  – DANH SÁCH CHỨC NĂNG
+7.2 Feature & Requirement Traceability
+Trạng thái
+	FR
+	US 
+liên quan
+	Feature
+	Mô tả
+	Ghi chú
+	UPDATE
+	FR01
+	US01
+	Quy tắc chung tạo yêu cầu
+	Bổ sung trường thông tin trên màn hình tạo yêu cầu để tạo PL tương ứng bên CM
+	 
+	MỚI
+	FR02
+	US02
+	Tạo yêu cầu chuyển pháp nhân
+	Áp dụng cho tất cả dịch vụ: thời điểm thực hiện CPN theo ngày đề nghị; quy tắc tạo đồng thời các loại phiếu khi đang tồn tại phiếu CPN
+	 
+	UPDAT
+	FR03
+	US03
+	Tạo yêu cầu Leasedline
+	Bổ sung tạo yêu cầu BMO khi tạo phiếu Thay đổi thông tin, Tạm ngưng, Khôi phục, Thanh lý Leasedline
+	 
+	MỚI
+	FR04
+	US04
+	Tạo yêu cầu thanh lý DV chưa triển khai
+	Tạo YCTL cho HĐ/PL đã cấp số nhưng chưa triển khai
+	 
+	MỚI
+	FR05
+	US05
+	Xem chi tiết phiếu YCTL
+	Xem chi tiết và xử lý phiếu YCTL theo quy trình đã cài đặt
+	 
+	UPDATE
+	FR06
+	US06
+	Xem chi tiết phiếu yêu cầu
+	Phê duyệt/xác nhận/thực hiện yêu cầu theo quy trình; hiển thị account người duyệt, người ký/văn bản, tiến trình phiếu BMO
+	 
+	UPDATE
+	FR07
+	US07
+	Danh sách yêu cầu
+	Bổ sung filter
+	 
+	UPDATE
+	FR08
+	US08
+	Email nhắc CSM upload tài liệu
+	Email nhắc CSM upload BBTL, công căn, BB chuyển nhượng 3 bên khi yêu cầu hoàn tất
+	
+
+	
+
+ 
+7.3 Ma trận phân quyền
+ 
+ 
+ 
+ 
+
+
+ 
+8. FEATURE DETAIL - ĐẶC TẢ CHỨC NĂNG CHI TIẾT
+8.1 FR01 — Tạo yêu cầu – Quy tắc chung
+Description
+	Chức năng bổ sung:
+* Yêu cầu thanh lý: bổ sung chọn Nhóm nguyên nhân → Nguyên nhân chi tiết, trường upload phụ lục.
+	Actor
+	Người dùng hệ thống được phân quyền tạo yêu cầu
+	Trigger
+	Tạo yêu cầu >> Chọn loại yêu cầu thanh lý >> tab Thông tin yêu cầu
+	Pre-Conditions
+	Người dùng đăng nhập thành công & được phân quyền.
+	Post-Conditions
+	Yêu cầu được tạo thành công; PL tương ứng bên CM có đủ thông tin
+	8.1.1 Business Rules
+BR ID
+	Mô tả
+	Thanh lý – Nhóm nguyên nhân / Nguyên nhân chi tiết
+	BR01-01
+	Khi tạo YCTL: chọn "Nhóm nguyên nhân" trước, sau đó hiển thị danh sách nguyên nhân chi tiết tương ứng theo nhóm, dữ liệu lấy thông nhóm và nguyên nhân chi tiết trên CM.
+Thông tin cấu hình nhóm nguyên nhân và nguyên nhân chi tiết trong menu trên CM: Thiết lập >> Quản lý trạng thái HĐ >> Tạo mới.
+	BR01-02
+	Bộ nguyên nhân mẫu:
+STT
+	Nhóm nguyên nhân
+	Nguyên nhân chi tiết
+	1
+	Nghĩa vụ tài chính & Pháp lý
+	Nợ cước quá hạn/Không còn khả năng chi trả
+	Khách hàng từ ưu đãi chi phí/cắt giảm ngân sách nội bộ
+	Thanh lý do Khách hàng vi phạm
+	Thanh lý do thay đổi quy định pháp lý/chính sách NCC
+	2
+	Biến động tổ chức Khách hàng
+	Thay đổi cơ cấu tổ chức không thể tiếp tục sử dụng dịch vụ
+	Công ty/địa điểm dừng hoạt động/giải thể
+	Chuyển pháp nhân do: ký lại, gộp hợp đồng
+	Khác
+	3
+	Thay đổi hợp đồng
+	Hết hạn hợp đồng/hết thời hạn thanh toán trả trước
+	Chuyển gói dịch vụ
+	4
+	Cạnh tranh thị trường
+	Nhà cung cấp khác có giá tốt hơn
+	Nhà cung cấp khác có chính sách công nợ tốt hơn
+	Nhà cung cấp khác có chính sách dịch vụ phù hợp hơn
+	5
+	Hỗ trợ sau bán hàng
+	Chất lượng dịch vụ không ổn định/không đúng cam kết
+	Thời gian xử lý sự cố chậm
+	Sự cố không được xử lý triệt để, lặp lại nhiều lần
+	Thủ tục/quy trình nội bộ FTI phức tạp, không phù hợp với KH
+	Không hài lòng trong quá trình chăm sóc KH
+	Khác
+	6
+	Hạ tầng
+	Chuyển địa điểm – không có hạ tầng cung cấp
+	Chuyển địa điểm mới có sẵn kết nối
+	7
+	Xử lý nội bộ và hệ thống
+	Thanh lý hợp đồng test (POC)
+	Lỗi hệ thống
+	
+
+	
+
+ 
+8.1.2 Business Workflow / Activity Flow (N/A)
+8.1.3 Các bước thực hiện (N/A)
+8.1.4 UI / Field Spec
+  
+
+ Màn hình nhập thông tin yêu cầu - chọn nguyên nhân
+
+
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Các trường thông tin thay đổi - Áp dụng cho tất cả quy trình thanh lý
+	1
+	Nhóm nguyên nhân
+	Y
+	Hiển thị nhóm nguyên nhân được cấu hình trên CM.
+Selectbox: chỉ chọn 1, mặc định rỗng
+	2
+	Nguyên nhân chi tiết
+	Y
+	Hiển thị nguyên nhân chi tiết theo nhóm nguyên nhân được cấu hình trên CM.
+Selectbox: chỉ chọn 1, mặc định rỗng. Chỉ hiện giá trị sau khi chọn Nhóm nguyên nhân.
+	3
+	Nguyên nhân khác
+	Y
+	Textbox cho phép nhập tối đa 200 ký tự.
+Hiển thị khi chọn Nguyên nhân chi tiết = “Khác”.
+	
+
+
+
+ 
+ 8.2 FR02 — Tạo/ thực hiện yêu cầu chuyển pháp nhân
+Description
+	Áp dụng cho tất cả dịch vụ. Chuyển pháp nhân trên hệ thống thực hiện theo ngày đề nghị chuyển pháp nhân; quy tắc tạo đồng thời các loại phiếu khi đang tồn tại phiếu CPN.
+	Actor
+	Người dùng hệ thống được phân quyền tạo yêu cầu
+	Trigger
+	Tạo yêu cầu >> Chuyển pháp nhân
+	Pre-Conditions
+	Người dùng đăng nhập thành công & được phân quyền.
+	Post-Conditions
+	Yêu cầu chuyển pháp nhân được tạo thành công.
+Luồng xử lý chuyển pháp nhân thực hiện đúng quy tắc.
+	8.2.1 Business Rules
+BR ID
+	Mô tả
+	BR02-01
+	Áp dụng cho tất cả dịch vụ. Mã dịch vụ gồm: TB, MTK, PL, Đầu số, Brandname
+	BR02-02
+	Thời điểm thực hiện chuyển pháp nhân trên hệ thống:
+* TH1: phiếu CPN done trước ngày đề nghị chuyển pháp nhân → thực hiện chuyển pháp nhân trên hệ thống tại ngày đề nghị chuyển.
+* TH2: phiếu CPN done sau ngày đề nghị chuyển pháp nhân → thực hiện chuyển pháp nhân trên hệ thống tại ngày hoàn tất phiếu yêu cầu CPN.
+	BR02-03
+	Rule cho phép tạo đồng thời các loại phiếu khi đang tồn tại phiếu CPN (kiểm tra chéo giữa FCR và tool dịch vụ):
+Nghiệp vụ trên FCR
+	Nghiệp vụ trên tool dịch vụ
+	Rule xử lý khi đang tồn tại phiếu CPN
+	
+
+	Thanh lý tự động - IDC
+	Nếu TB tồn tại phiếu CPN, IDC sẽ không thực hiện job thanh lý và chuyển sang trạng thái pending đến khi phiếu CPN trên FCR hoàn tất. Sau đó, IDC sẽ thực hiện job thanh lý.
+	Tạm ngưng
+	
+
+	Không chặn
+	Khôi phục
+	
+
+	Không chặn
+	Chuyển pháp nhân
+	
+
+	Chặn
+	Chuyển dịch vụ
+	
+
+	Chặn
+	NC/HC
+	
+
+	Chặn
+	Gia hạn
+	
+
+	Không chặn nếu CPN CPN giữ số HĐ cũ; các trường hợp còn lại chặn
+	
+
+	Chuyển X-connect - IDC
+	Chặn
+	
+
+	Gia hạn tự động - IDC
+	Không chặn
+	
+
+	Tạm ngưng tự động - IDC
+	Không chặn
+	
+
+	Thêm thiết bị - IDC
+	Không chặn
+	
+
+	Rút thiết bị - IDC
+	Không chặn
+	
+
+	Di chuyển thiết bị - IDC
+	Không chặn
+	Thanh lý
+	
+
+	Giữ số HĐ cũ, Tạo số HĐ mới: chặn
+Chuyển sang HĐ khác: chặn thanh lý đối với hợp đồng bị CPN; chỉ cho phép tạo thanh lý:
+* Hợp đồng đích được CPN.
+* Phiếu CPN phải pass bước DEM.
+* Nếu phiếu CPN chưa pass bước DEM, khi DEM duyệt CPN hiện cảnh báo “HĐ <số HĐ đích> đã bị thanh lý, vui lòng từ chối phiếu!”
+	
+
+* Hệ thống kiểm tra, nếu chọn ít nhất có 1 Mã dịch vụ đang tồn tại trong phiếu CPN chưa hoàn thành, hiển thị thông báo khi bấm “Tiếp tục": “Mã dịch vụ <mã> đang tồn tại trong phiếu CPN <mã> chưa hoàn tất. Vui lòng chọn mã dịch vụ khác!”
+	BR02-04
+	Rule đẩy phiếu CPN với trường hợp chưa đến ngày đề nghị CPN: 2h00 sáng ngày để nghị, FCR mới chuyển thông tin sang để tool dịch vụ thực hiện bước TOC.
+	8.2.2 Business Workflow / Activity Flow (N/A)
+8.2.3 Các bước thực hiện (N/A)
+8.2.4 UI / Field Spec (N/A)
+8.3 FR03 — Tạo yêu cầu - Leasedline
+Description
+	Chức năng bổ sung cho phép tạo yêu cầu BMO khi tạo phiếu Thay đổi thông tin, Tạm ngưng, Khôi phục, Thanh lý Leasedline.
+Bổ sung bước SCS kiểm soát đối với phiếu Thay đổi thông tin, Chuyển địa điểm, Thanh lý.
+	Actor
+	Người dùng hệ thống được phân quyền tạo yêu cầu
+	Trigger
+	Tạo yêu cầu >> Thay đổi thông tin
+	Pre-Conditions
+	Người dùng đăng nhập thành công & được phân quyền.
+	Post-Conditions
+	Yêu cầu được tạo thành công.
+	8.3.1 Business Rules
+BR ID
+	Mô tả
+	Rule tạo phiếu BMO
+	BR03-01
+	Điều kiện tạo phiếu BMO cho từng MTK (hệ thống tự xác định thỏa tất cả điều kiện):
+- Kênh = OFFNET.
+- Hình thức thuê đối tác:
+* Nếu là ISP Khác (qua hạ tầng FPT):
+   * Thuê BW - dạng đấu access về POP FPT (triển khai mới 2 đầu) có qua phân đoạn mạng MPLS của đối tác.
+   * Thuê BW - dạng đấu trunking có sẵn (triển khai mới đầu KH, đầu trunk FPT chỉ khai báo vlan).
+* Nếu là ISC Khác (không qua hạ tầng FPT):
+   * FTTH
+   * Băng thông
+   * Leasedline
+   * Kênh E1
+- Loại thay đổi thông tin = Chính thức.
+- MTK phải tồn tại phiếu Tạo mới trên LL (trạng thái hoàn thành). Nếu lúc chọn MTK ở bước 1, chọn MTK chưa có phiếu tạo mới BMO, hiện thông báo “Mã triển khai <Mã TK1, mã TK2> chưa có phiếu Tạo mới BMO - trạng thái hoàn thành trên Leasedline. Vui lòng Tạo mới phiếu BMO để thực hiện thanh lý!”. Click Đóng để đóng popup và không qua bước.
+	BR03-02
+	Tỷ lệ lãi/lỗ (%) = (Cước tháng giá bán – Cước tháng giá mua) / Cước tháng giá bán * 100.
+- Tự tính khi nhập/thay đổi Cước tháng giá mua hoặc Cước tháng giá bán; readonly.
+- Làm tròn 2 chữ số thập phân, hiển thị kèm ký hiệu %. VD: Cước tháng giá mua 200, giá bán 300 → (300 – 200) / 300 * 100 = 33.33%.
+- Tỷ lệ ≥ 0 hiển thị màu xanh; < 0 hiển thị màu đỏ.
+	BR03-03
+	Phiếu không có MTK thỏa điều kiện tạo phiếu BMO: vùng thông tin BMO hiển thị text "Không có thông tin cấu hình BMO, vui lòng nhấn Tạo để hoàn tất thao tác!"
+	Rule sinh bước SCS phê duyệt - Thay đổi thông tin, Thanh lý.
+	BR03-04
+	Khi chọn MTK, chỉ cho phép chọn các MTK đồng thời có building, hoặc không có building để tạo yêu cầu.
+Khi upload, nếu danh sách chứa MTK có building và không có building thì hệ thống báo lỗi và không cho thao tác tiếp “Chỉ được tạo yêu cầu đồng thời cho các MTK có buiding hoặc đồng thời không có building!”
+	BR03-06
+	Rule check building:
+* Mã POP: bắt đầu bằng ký tự Bxxx
+	Rule sinh bước SCS phê duyệt - Chuyển địa điểm
+	BR03-07
+	Điều kiện sinh bước SCS phê duyệt:
+* Mã POP: bắt đầu bằng ký tự Bxxx
+* Kênh = ONNET
+	Thay đổi thông tin
+	BR03-08
+	Rule hệ thống hiển thị ở form tạo yêu cầu - tab Thông tin cấu hình - table “Thông số sau thay đổi” và hiển thị trường Băng thông NIX/GIA khi nhấn icon Edit:
+* Internet GIA only => nhập Băng thông GIA (Mb)
+* Internet NIX only, Internet Peering => nhập Băng thông NIX (Mb) 
+* Internet GIA - NIX, SD WAN_ILL => nhập Băng thông NIX (Mb), Băng thông GIA (Mb)
+* Internet FTTH, SDwan + FTTH => nhập Băng thông NIX (Mb), Băng thông GIA (Mb) (với Băng thông GIA không bắt buộc)
+* Các kênh còn lại => nhập Băng thông kênh / Băng thông NIX (MB)
+	 
+8.3.2 Business Workflow / Activity Flow (N/A)
+8.3.4 UI / Field Spec (N/A)
+  
+
+Màn hình tạo yêu cầu Thay đổi thông tin – Bước 3 Thông tin cấu hình (loại Chính thức)
+  
+
+Grid Danh sách mã triển khai – bổ sung nhóm cột Thông tin BMO, Giá mua mới, Giá bán mới
+ 
+Tên field
+	Bắt buộc
+	Mô tả chi tiết
+	Popup Chọn chi tiết phiếu thi công – cấp mã triển khai (dữ liệu lấy từ LL)
+	Hình thức thuê đối tác
+	N/A
+	Label: Hình thức thuê đối tác
+Hiển thị giá trị hình thức thuê đối tác của MTK (VD: Thuê sợi (đấu từ tập điểm POP FPT về KHG); Thuê BW – dạng đấu trunking có sẵn...)
+	Bước 1: Grid Danh sách phiếu thi công (dữ liệu lấy từ LL)
+	Phiếu BMO
+	N/A
+	Hiển thị mã phiếu Tạo mới BMO của MTK (VD: PYCTM00048)
+Hyperlink: click mở chi tiết phiếu BMO tương ứng trên tool LL (tab mới)
+Không có phiếu: để trống
+	Trạng thái phiếu BMO
+	N/A
+	Hiển thị trạng thái phiếu Tạo mới BMO (VD: Hoàn tất)
+Không có phiếu: để trống
+	Popup thông báo khi nhấn Tạo/Cập nhật
+	Thông báo thiếu thông tin phiếu BMO
+	N/A
+	"Vui lòng nhập đầy đủ thông tin phiếu BMO cho mã triển khai <Danh sách mã triển khai>!"
+	Cảnh báo chưa có phiếu Tạo mới BMO
+	N/A
+	Tiêu đề: Cảnh báo !
+Nội dung: "Mã triển khai <Mã TK1, mã TK2> chưa có thông tin phiếu Tạo mới BMO - trạng thái hoàn thành trên Leasedline. Vui lòng Tạo mới phiếu BMO để thao tác tiếp tục!"
+Button Đóng: đóng popup, giữ nguyên dữ liệu đã nhập
+	 
+  
+
+Popup Cập nhật thông tin – Thay đổi thông tin
+ 
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Grid Danh sách mã triển khai – nhóm cột bổ sung (chỉ có giá trị với MTK thỏa điều kiện tạo phiếu BMO)
+	 
+	Thông tin BMO – Nhà cung cấp
+	N/A
+	Hiển thị nhà cung cấp của MTK
+Dữ liệu lấy từ LL
+	 
+	Thông tin BMO – Băng thông NIX mới (MB)
+	N/A
+	Hiển thị Băng thông NIX mới (MB) đã nhập tại popup
+	 
+	Thông tin BMO – Băng thông GIA mới (MB)
+	N/A
+	Hiển thị Băng thông GIA mới (MB) đã nhập tại popup
+Loại dịch vụ không có GIA: hiển thị N/A
+	 
+	Thông tin BMO – Cước phí nâng cấp
+	N/A
+	Hiển thị Cước phí nâng cấp đã nhập, định dạng xxx,xxx
+	 
+	Thông tin BMO – Ngày áp dụng cước mới
+	N/A
+	Hiển thị ngày đã nhập, định dạng dd/MM/yyyy
+	 
+	Giá mua mới – Chi phí cài đặt thu 1 lần
+	N/A
+	Hiển thị giá trị đã nhập, định dạng xxx,xxx
+	 
+	Giá mua mới – Cước tháng
+	N/A
+	Hiển thị giá trị đã nhập, định dạng xxx,xxx
+	 
+	Giá bán mới – Chi phí cài đặt thu 1 lần
+	N/A
+	Hiển thị giá trị đã nhập, định dạng xxx,xxx
+	 
+	Giá bán mới – Cước tháng
+	N/A
+	Hiển thị giá trị đã nhập, định dạng xxx,xxx
+	 
+	Giá bán mới – Tỷ lệ lãi/lỗ
+	N/A
+	Hiển thị tỷ lệ hệ thống tự tính, định dạng xx.xx%
+	 
+	Icon bút
+	N/A
+	Click mở popup Cập nhật thông tin của MTK
+	Popup Cập nhật thông tin – Thông số hiện tại (readonly, dữ liệu từ LL)
+	 
+	Băng thông kênh / Băng thông NIX
+	N/A
+	Hiển thị băng thông hiện tại
+	 
+	Băng thông GIA
+	N/A
+	Hiển thị băng thông GIA hiện tại
+	 
+	Hình thức thanh toán
+	N/A
+	Hiển thị Trả tháng/Trả trước
+	 
+	Cước tháng/Cước trả trước
+	N/A
+	Hiển thị cước hiện tại, định dạng xxx.xxx.xxx VND
+	 
+	Nhà cung cấp
+	N/A
+	Hiển thị nhà cung cấp (đối tác) của MTK
+	Popup Cập nhật thông tin – Thông tin BMO
+	 
+	Cước phí nâng cấp
+	Y
+	Input number, chỉ nhập số nguyên ≥ 0, định dạng xxx,xxx
+	 
+	Ngày áp dụng cước mới
+	Y
+	Date picker, định dạng dd/MM/yyyy
+	 
+	Băng thông NIX mới (MB)
+	N
+	Input number, số nguyên dương, tối đa 9 ký tự
+Mặc định = Băng thông kênh / Băng thông NIX (MB) phía khách hàng, cho phép sửa
+	 
+	Băng thông GIA mới (MB)
+	N
+	Input number, số nguyên dương, tối đa 9 ký tự
+Chỉ áp dụng loại dịch vụ có GIA
+Mặc định = Băng thông GIA (MB) phía khách hàng, cho phép sửa
+	 
+	File đính kèm
+	Y
+	Chọn tệp đính kèm theo BR04
+	 
+	Giá mua mới – Chi phí cài đặt thu 1 lần
+	Y
+	Input number, số nguyên ≥ 0, định dạng xxx,xxx
+	 
+	Giá mua mới – Cước tháng
+	Y
+	Input number, số nguyên ≥ 0, định dạng xxx,xxx
+	 
+	Giá bán mới – Chi phí cài đặt thu 1 lần
+	Y
+	Input number, số nguyên ≥ 0, định dạng xxx,xxx
+	 
+	Giá bán mới – Cước tháng
+	Y
+	Input number, số nguyên ≥ 0, định dạng xxx,xxx
+	 
+	Tỷ lệ lãi/ lỗ
+	N/A
+	Readonly, tự tính = (Cước tháng giá bán – Cước tháng giá mua) / Cước tháng giá bán * 100, làm tròn 2 chữ số thập phân
+Lãi màu xanh, lỗ màu đỏ
+Cước tháng giá bán = 0 hoặc chưa nhập: không hiển thị giá trị
+	Popup Cập nhật thông tin – Thông số sau thay đổi phía khách hàng
+	 
+	Ngày hẹn triển khai
+	Y
+	Date picker, định dạng dd/MM/yyyy
+	 
+	Băng thông kênh / Băng thông NIX (MB)
+	N
+	Input number, tối đa 9 ký tự số nguyên dương và số 0
+	 
+	Tính phí
+	Y
+	Dropdown Có/Không; trường Có tính phí disable theo quy tắc hiện hành
+	 
+	Băng thông GIA (MB)
+	N
+	Input number, tối đa 9 ký tự số nguyên dương và số 0
+	 
+	Cước phí mới (VND)
+	N
+	Input number, định dạng xxx,xxx; hiển thị khi Tính phí = Có
+	 
+	Hủy / Lưu / Lưu & tiếp tục
+	N/A
+	Theo BR02
+	 
+  
+
+Màn hình tạo yêu cầu Tạm ngưng – Thông tin tạm ngưng BMO (có tạo phiếu BMO)
+  
+
+Grid Thông tin tạm ngưng BMO sau khi cập nhật
+  
+
+Màn hình tạo yêu cầu Tạm ngưng – không có MTK tạo phiếu BMO
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	THÔNG TIN TẠM NGƯNG BMO – Grid
+	 
+	STT
+	N/A
+	Hiển thị STT
+	 
+	Mã triển khai
+	N/A
+	Hiển thị mã triển khai thỏa điều kiện tạo phiếu BMO
+	 
+	Mã phụ lục
+	N/A
+	Hiển thị mã phụ lục
+	 
+	Loại dịch vụ
+	N/A
+	Hiển thị loại dịch vụ
+	 
+	Kênh
+	N/A
+	Hiển thị OFFNET
+	 
+	Ngày đề nghị
+	N/A
+	Hiển thị ngày đề nghị đã nhập, định dạng dd/MM/yyyy
+	 
+	Nguyên nhân TN
+	N/A
+	Hiển thị nguyên nhân tạm ngưng đã chọn
+	 
+	File
+	N/A
+	Hiển thị tên file đính kèm, hyperlink tải file
+	 
+	Icon bút
+	N/A
+	Click mở popup Thông tin tạm ngưng
+	Popup Thông tin tạm ngưng - <Mã triển khai>
+	 
+	Ngày đề nghị
+	Y
+	Date picker, định dạng dd/MM/yyyy
+	 
+	Nguyên nhân tạm ngưng
+	Y
+	Dropdown chỉ chọn 1
+Danh mục nguyên nhân tạm ngưng lấy từ BMO (LL), VD: Chuyển địa điểm
+	 
+	File đính kèm
+	Y
+	Chọn tệp đính kèm theo BR04
+	 
+	Hủy / Lưu / Lưu & tiếp tục
+	N/A
+	Theo BR02
+	Không có MTK tạo phiếu BMO
+	 
+	Thông báo
+	N/A
+	"Không có thông tin cấu hình BMO, vui lòng nhấn Tạo để hoàn tất thao tác!"
+	 
+	Trở về / Tạo
+	N/A
+	Trở về: quay lại Bước 2
+Tạo: tạo phiếu yêu cầu
+	 
+  
+
+Màn hình tạo yêu cầu Khôi phục – Thông tin khôi phục BMO (có tạo phiếu BMO)
+  
+
+Grid Thông tin khôi phục BMO sau khi cập nhật
+  
+
+Popup Cập nhật thông tin – Khôi phục
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	THÔNG TIN KHÔI PHỤC BMO – Grid
+	 
+	STT
+	N/A
+	Hiển thị STT
+	 
+	Mã triển khai
+	N/A
+	Hiển thị mã triển khai thỏa điều kiện tạo phiếu BMO
+	 
+	Mã phụ lục
+	N/A
+	Hiển thị mã phụ lục
+	 
+	Loại dịch vụ
+	N/A
+	Hiển thị loại dịch vụ
+	 
+	Ngày đề nghị
+	N/A
+	Hiển thị ngày đề nghị đã nhập, định dạng dd/MM/yyyy
+	 
+	File
+	N/A
+	Hiển thị tên file đính kèm, hyperlink tải file
+	 
+	Icon bút
+	N/A
+	Click mở popup Cập nhật thông tin
+	Popup Cập nhật thông tin - <Mã triển khai>
+	 
+	Ngày đề nghị
+	Y
+	Date picker, định dạng dd/MM/yyyy
+	 
+	File đính kèm
+	Y
+	Chọn tệp đính kèm theo BR04
+	 
+	Hủy / Lưu / Lưu & tiếp tục
+	N/A
+	Theo BR02
+	Không có MTK tạo phiếu BMO
+	 
+	Thông báo
+	N/A
+	"Không có thông tin cấu hình BMO, vui lòng nhấn Tạo để hoàn tất thao tác!"
+	 
+  
+
+Màn hình tạo yêu cầu Thanh lý – Thông tin thanh lý BMO (có tạo phiếu BMO)
+  
+
+Grid Thông tin thanh lý BMO sau khi cập nhật
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	THÔNG TIN THANH LÝ BMO – Grid
+	 
+	STT
+	N/A
+	Hiển thị STT
+	 
+	Mã triển khai
+	N/A
+	Hiển thị mã triển khai thỏa điều kiện tạo phiếu BMO
+	 
+	Mã phụ lục
+	N/A
+	Hiển thị mã phụ lục
+	 
+	Loại dịch vụ
+	N/A
+	Hiển thị loại dịch vụ
+	 
+	Nhà cung cấp
+	N/A
+	Hiển thị nhà cung cấp của MTK
+Dữ liệu lấy từ LL
+	 
+	Điểm đầu thanh lý
+	N/A
+	Hiển thị điểm đầu thanh lý đã chọn
+	 
+	Ngày đề nghị
+	N/A
+	Hiển thị ngày đề nghị đã nhập, định dạng dd/MM/yyyy
+	 
+	Nguyên nhân thanh lý
+	N/A
+	Hiển thị nguyên nhân thanh lý đã chọn
+	 
+	Vật tư thu hồi
+	N/A
+	Hiển thị vật tư thu hồi đã nhập
+	 
+	File
+	N/A
+	Hiển thị tên file đính kèm, hyperlink tải file
+	 
+	Icon bút
+	N/A
+	Click mở popup Thông tin thanh lý
+	Popup Thông tin thanh lý - <Mã triển khai>
+	 
+	Nguyên nhân thanh lý
+	Y
+	Dropdown chỉ chọn 1
+Danh mục nguyên nhân thanh lý lấy từ BMO (LL), VD: KH cần thanh lý
+	 
+	Điểm đầu thanh lý
+	Y
+	Dropdown chỉ chọn 1
+Danh sách địa chỉ điểm đầu của MTK lấy từ LL
+	 
+	Ngày đề nghị
+	Y
+	Date picker, định dạng dd/MM/yyyy
+	 
+	Vật tư thu hồi
+	Y
+	Textbox, tối đa 500 ký tự
+	 
+	File đính kèm
+	Y
+	Chọn tệp đính kèm theo BR04
+	 
+	Hủy / Lưu / Lưu & tiếp tục
+	N/A
+	Theo BR02
+	Không có MTK tạo phiếu BMO
+	 
+	Thông báo
+	N/A
+	"Không có thông tin cấu hình BMO, vui lòng nhấn Tạo để hoàn tất thao tác!"
+	 
+  
+Màn hình chuyển địa điểm có SCS kiểm soát - Địa chỉ Trong nước
+  
+
+Màn hình chuyển địa điểm có SCS kiểm soát - Địa chỉ Trong DC
+  
+
+Màn hình chuyển địa điểm có SCS kiểm soát - Địa chỉ Quốc tế
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Thông tin bổ sung – Chi check trên phiếu có sinh bước SCS kiểm soát
+Mô tả chung 3 loại chuyển địa điểm
+	 1
+	Tòa nhà
+	Y
+	Hiển thị danh sách tòa nhà theo MTK (dữ liệu LL cung cấp qua api)
+Selectbox: cho phép chọn 1, mặc định rỗng
+	 2
+	Đối tác
+	N/A
+	Hiển thị danh sách đối tác theo tòa nhà (dữ liệu LL cung cấp qua api)
+Disable
+	
+
+8.4 FR04 — Thực hiện yêu cầu - Leasedline
+Description
+	Chức năng bổ sung quy trình thực hiện yêu cầu BMO khi tạo phiếu Thay đổi thông tin, Tạm ngưng, Khôi phục, Thanh lý Leasedline.
+Bổ sung bước SCS kiểm soát đối với phiếu Thay đổi thông tin, Chuyển địa điểm, Thanh lý.
+	Actor
+	Người dùng hệ thống được phân quyền thực hiện yêu cầu
+	Trigger
+	Danh sách yêu cầu >> xem chi tiết yêu cầu
+	Pre-Conditions
+	Người dùng đăng nhập thành công & được phân quyền.
+	Post-Conditions
+	Thao tác được phiếu yêu cầu Leasedline
+	 
+8.4.1 Business Rules
+BR ID
+	Mô tả
+	Rule tạo phiếu BMO (Thanh lý, Thay đổi thông tin, Tạm ngưng, Khôi phục LL)
+	BR03-01
+	Đối với phiếu BMO tạo từ FCR, hệ thống LL sẽ sinh phiếu BMO tương ứng, hiển thị ở màn hình chức năng Đối tác >> ĐỐI TÁC OFFNET (BMO) (LL) >> Danh sách thuê kênh.
+Các phiếu LL ở luồng Quản trị dịch vụ >> Xử lý yêu cầu dịch vụ >> Kênh truyền (LL) như cũ không thay đổi, version này chỉ thêm thao tác hệ thống FCR tạo phiếu Thay đổi thông tin, Tạm ngưng, Thanh lý, Khôi phục đồng thời sinh phiếu BMO tự động trên LL.
+	BR03-02
+	Thông tin cập nhật phiếu BMO ở LL trong quá trình duyệt Thanh lý, Thay đổi thông tin, Tạm ngưng, Khôi phục sẽ không cập nhật ngược lại trên FCR.
+	BR03-03
+	Các quy trình nếu không tạo phiếu BMO như cũ (không thay đổi).
+	BR03-04
+	Điều kiện để FCR chuyển bước kết thúc: 
+* Trên FCR done các bước trạng thái success.
+* Phiếu BMO done các bước trạng thái success.
+	BR03-05
+	Các buớc thực hiện tiến trình BMO gồm:
+* Chờ SCS cập nhật
+* Chờ TP/PP SCS duyệt
+* Chờ SCS đóng phiếu
+	BR03-06
+	Lấy ngày thanh lý của khách hàng để off HĐ trên CM (phiếu trên FCR).
+	BR03-07
+	1 phiếu yêu cầu tương ứng 1 phiếu yêu cầu trên LL, mỗi MTK tương ứng 1 dòng trong Danh sách Mã triển khai trong phiếu.
+	BR03-08
+	Phiếu FCR chỉ kết thúc khi phiếu BMO đã hoàn thành
+	BR03-09
+	Thay đổi thông tin: thời điểm tạo phiếu BMO ngay sau khi bước 1 trên FCR (DEM phê duyệt) được Phê duyệt. Chỉ áp dụng phiếu loại Chính thức có MTK thỏa điều kiện tạo phiếu BMO. Việc tạo phiếu BMO không thay đổi luồng gửi phiếu sang LL cho kỹ thuật cấu hình.
+	BR06-10
+	Tích hợp từ BMO: BMO chỉ gọi sang FCR khi phiếu BMO chuyển trạng thái Hoàn tất (gửi Mã yêu cầu FCR, Mã triển khai, Mã phiếu BMO).
+	Rule SCS phê duyệt
+	BR06-11
+	Bước SCS phê duyệt chỉ áp dụng cho các loại yêu cầu LL: Thay đổi thông tin, Chuyển địa điểm, Thanh lý.
+* Hệ thống kiểm tra MTK: MTK thuộc Building → chuyển bước SCS phê duyệt; MTK không thuộc Building → bỏ qua bước SCS, tự động chuyển bước tiếp theo.
+* SCS thao tác trên FCR, chỉ có Phê duyệt, không có Từ chối.
+	BR06-12
+	Hệ thống check thông tin building và đối tác trước khi chuyển địa điểm với thông tin tạo phiếu để check: loại CDD:
+* CDD trong cùng Building 
+* CĐĐ sang Building khác – cùng đối tác 
+* CĐĐ sang Building khác – khác đối tác.
+	8.4.2 Business Workflow / Activity Flow
+  
+
+Luồng Thay đổi thông tin Tạm thời Leasedline
+  
+
+Luồng Thay đổi thông tin Chính thức Leasedline
+  
+
+Luồng Tạm ngưng Leasedline (có phiếu BMO)
+ 
+  
+
+Luồng Khôi phục Leasedline (có phiếu BMO)
+  
+
+Luồng Thanh lý Leasedline (có phiếu BMO)  
+8.4.3 Các bước thực hiện
+* Thay đổi thông tin Luồng tạm thời
+ID
+	Activity (Mô tả hoạt động)
+	Actor
+	1
+	Sale tạo yêu cầu Thay đổi thông tin loại Tạm thời. Hệ thống xác định phạm vi SCS:
+* Thuộc phạm vi: chuyển đến bước 2.
+* Không thuộc phạm vi: tự động chuyển đến bước 3.
+	Hệ thống FCR
+	2
+	Hệ thống LL nhận thông tin phiếu yêu cầu
+	Hệ thống Leasedline
+	3
+	Kỹ thuật thực hiện cấu hình
+	Kỹ thuật
+Hệ thống Leasedline
+	4
+	Sau khi kỹ thuật thực hiện, hệ thống LL gửi thông tin Từ chối / Thành công đến FCR. FCR nhận thông tin và kết thúc quy trình
+	Hệ thống FCR
+	* Thay đổi thông tin Luồng chính thức
+ID
+	Activity (Mô tả hoạt động)
+	Actor
+	1
+	Sale tạo yêu cầu Thay đổi thông tin loại Chính thức. Hệ thống xác định phạm vi SCS:
+* Thuộc phạm vi: chuyển đến bước 2.
+* Không thuộc phạm vi: tự động chuyển đến bước 3.
+	Người tạo / Hệ thống FCR
+	2
+	SCS kiểm soát, xác nhận ảnh hưởng trên FCR. SCS không từ chối; sau khi xác nhận chuyển đến bước 3.
+	SCS
+	3
+	DEM phê duyệt:
+* Phê duyệt: chuyển đến bước 5.
+* Từ chối: chuyển đến bước 4.
+	DEM
+	4
+	Người tạo chỉnh sửa thông tin phiếu yêu cầu:
+* Chỉnh sửa: gửi lại DEM phê duyệt (bước 3).
+* Kết thúc: kết thúc quy trình.
+	Người tạo
+	5
+	Sau khi DEM phê duyệt, hệ thống tạo phiếu BMO Thay đổi thông tin cho MTK thỏa điều kiện (1 MTK – 1 phiếu BMO). Chuyển song song đến bước 6 (luồng xử lý) và bước 7 (luồng BMO).
+	Hệ thống FCR / Hệ thống Leasedline (BMO)
+	6
+	LL nhận thông tin phiếu yêu cầu; kỹ thuật thực hiện cấu hình. Kỹ thuật không từ chối.
+	Kỹ thuật / Hệ thống Leasedline
+	7
+	Phiếu BMO được duyệt theo quy trình duyệt BMO đến khi Hoàn tất. Luồng BMO chạy song song, không ảnh hưởng các bước xử lý; BMO hoàn tất gửi đến bước Kết thúc của FCR.
+	Hệ thống Leasedline (BMO)
+	6
+	LL gửi thông tin Thành công đến FCR. FCR nhận thông tin và kết thúc quy trình. FCR chỉ kết thúc phiếu khi đồng thời luồng xử lý đã xong và phiếu BMO đã Hoàn tất.
+	Hệ thống FCR
+	* Tạm ngưng 
+ID
+	Activity
+	Đầu ra
+	Actor
+	1
+	Sale tạo yêu cầu Tạm ngưng. Hệ thống xác định phạm vi SCS:
+* Thuộc phạm vi: chuyển đến bước 2.
+* Không thuộc phạm vi: tự động chuyển đến bước 3.
+	Phiếu yêu cầu được tạo
+	Người tạo / Hệ thống FCR
+	2
+	SCS kiểm soát, xác nhận ảnh hưởng trên FCR. SCS không từ chối; sau khi xác nhận chuyển đến bước 3.
+	Phiếu được SCS xác nhận
+	SCS
+	3
+	CSM/DEM phê duyệt:
+* Duyệt: chuyển đến bước 5.
+* Từ chối: chuyển đến bước 4.
+	Kết quả phê duyệt
+	CSM/DEM
+	4
+	Người tạo chỉnh sửa thông tin phiếu yêu cầu:
+* Chỉnh sửa: gửi lại CSM/DEM phê duyệt (bước 3).
+* Kết thúc: kết thúc quy trình.
+	Phiếu gửi lại / kết thúc
+	Người tạo
+	5
+	Sau khi CSM/DEM phê duyệt, hệ thống tạo phiếu BMO Tạm ngưng cho MTK thỏa điều kiện (1 MTK – 1 phiếu BMO). Chuyển song song đến bước 6 (luồng xử lý) và bước 12 (luồng BMO).
+	Phiếu BMO được tạo
+	Hệ thống FCR / Hệ thống Leasedline (BMO)
+	6
+	AF xác nhận yêu cầu. AF không từ chối. Sau khi xác nhận, LL nhận thông tin phiếu yêu cầu, chuyển đến bước 7.
+	Phiếu được AF xác nhận
+	AF
+	7
+	SDC/TOC thực hiện yêu cầu. TOC chỉ có luồng thực hiện, không từ chối.
+	Yêu cầu được thực hiện
+	SDC/TOC
+	8
+	LL gửi thông tin tạm ngưng tới CM
+	Thông tin gửi CM
+	Hệ thống Leasedline
+	9
+	CM cập nhật trạng thái HĐ/PL
+	Trạng thái HĐ/PL được cập nhật
+	Hệ thống CM
+	10
+	LL cập nhật kết quả về FCR
+	Kết quả gửi FCR
+	Hệ thống Leasedline
+	11
+	FCR nhận thông tin cập nhật và kết thúc quy trình. FCR chỉ kết thúc phiếu khi đồng thời luồng xử lý đã xong và phiếu BMO đã Hoàn tất.
+	Phiếu kết thúc
+	Hệ thống FCR
+	12
+	Phiếu BMO được duyệt theo quy trình duyệt BMO đến khi Hoàn tất. Luồng BMO chạy song song, không ảnh hưởng các bước xử lý; BMO hoàn tất gửi đến bước Kết thúc của FCR.
+	Phiếu BMO hoàn tất
+	Hệ thống Leasedline (BMO)
+	* Khôi phục LL
+ID
+	Activity
+	Actor
+	1
+	Sale tạo yêu cầu Khôi phục. Hệ thống xác định phạm vi SCS:
+* Thuộc phạm vi: chuyển đến bước 2.
+* Không thuộc phạm vi: tự động chuyển đến bước 3.
+	Người tạo / Hệ thống FCR
+	2
+	SCS kiểm soát, xác nhận ảnh hưởng trên FCR. SCS không từ chối; sau khi xác nhận chuyển đến bước 3.
+	SCS
+	3
+	CSM/DEM phê duyệt:
+* Duyệt: chuyển đến bước 5.
+* Từ chối: chuyển đến bước 4.
+	CSM/DEM
+	4
+	Người tạo chỉnh sửa thông tin phiếu yêu cầu:
+* Chỉnh sửa: gửi lại CSM/DEM phê duyệt (bước 3).
+* Kết thúc: kết thúc quy trình.
+	Người tạo
+	5
+	Sau khi CSM/DEM phê duyệt, hệ thống tạo phiếu BMO Khôi phục cho MTK thỏa điều kiện (1 MTK – 1 phiếu BMO). Chuyển song song đến bước 6 (luồng xử lý) và bước 12 (luồng BMO).
+	Hệ thống FCR / Hệ thống Leasedline (BMO)
+	6
+	AF xác nhận yêu cầu. AF không từ chối. Sau khi xác nhận, LL nhận thông tin phiếu yêu cầu, chuyển đến bước 7.
+	AF
+	7
+	SDC/TOC thực hiện yêu cầu. TOC chỉ có luồng thực hiện, không từ chối.
+	SDC/TOC
+	8
+	LL gửi thông tin khôi phục tới CM
+	Hệ thống Leasedline
+	9
+	CM cập nhật trạng thái HĐ/PL
+	Hệ thống CM
+	10
+	LL cập nhật kết quả về FCR
+	Hệ thống Leasedline
+	11
+	FCR nhận thông tin cập nhật và kết thúc quy trình. FCR chỉ kết thúc phiếu khi đồng thời luồng xử lý đã xong và phiếu BMO đã Hoàn tất.
+	Hệ thống FCR
+	12
+	Phiếu BMO được duyệt theo quy trình duyệt BMO đến khi Hoàn tất. Luồng BMO chạy song song, không ảnh hưởng các bước xử lý; BMO hoàn tất gửi đến bước Kết thúc của FCR.
+	Hệ thống Leasedline (BMO)
+	 
+* Thanh lý
+ID
+	Activity
+	Actor
+	1
+	Sale tạo yêu cầu Thanh lý. Hệ thống xác định phạm vi SCS:
+* Thuộc phạm vi: chuyển đến bước 2.
+* Không thuộc phạm vi: tự động chuyển đến bước 3.
+	Người tạo / Hệ thống FCR
+	2
+	SCS kiểm soát, xác nhận ảnh hưởng trên FCR. SCS không từ chối; sau khi xác nhận chuyển đến bước 3.
+	SCS
+	3
+	CSM/DEM phê duyệt:
+* Duyệt: chuyển đến bước 5.
+* Từ chối: chuyển đến bước 4.
+	CSM/DEM
+	4
+	Người tạo chỉnh sửa thông tin phiếu yêu cầu:
+* Chỉnh sửa: gửi lại CSM/DEM phê duyệt (bước 3).
+* Kết thúc: kết thúc quy trình.
+	Người tạo
+	5
+	Sau khi CSM/DEM phê duyệt, hệ thống tạo phiếu BMO Thanh lý cho MTK thỏa điều kiện (1 MTK – 1 phiếu BMO). Chuyển song song đến bước 6 (luồng xử lý) và bước 13 (luồng BMO).
+	Hệ thống FCR / Hệ thống Leasedline (BMO)
+	6
+	AF vật tư xác nhận yêu cầu, nhập thông tin thiết bị thu hồi. AF không từ chối. Sau khi xác nhận, LL nhận thông tin phiếu yêu cầu, chuyển đến bước 7.
+	AF vật tư
+	7
+	TOC thực hiện yêu cầu (ngắt dịch vụ). TOC chỉ có luồng thực hiện, không từ chối. Ngắt dịch vụ thành công: chuyển song song đến bước 8 và bước 10.
+	TOC
+	8
+	FAF công nợ đóng yêu cầu (không phụ thuộc luồng BMO)
+	FAF công nợ
+	9
+	Hệ thống cập nhật trạng thái phiếu và kết thúc quy trình trên FCR. FCR chỉ kết thúc phiếu khi đồng thời luồng xử lý đã xong và phiếu BMO đã Hoàn tất.
+	Hệ thống FCR
+	10
+	LL gửi thông tin thanh lý đến CM (lấy ngày thanh lý của khách hàng để off HĐ trên CM)
+	Hệ thống Leasedline
+	11
+	CM cập nhật trạng thái mã triển khai
+	Hệ thống CM
+	12
+	CM cập nhật trạng thái HĐ/PL
+	Hệ thống CM
+	13
+	Phiếu BMO được duyệt theo quy trình duyệt BMO đến khi Hoàn tất. Luồng BMO chạy song song, không ảnh hưởng các bước xử lý; BMO hoàn tất gửi đến bước Kết thúc của FCR.
+	Hệ thống Leasedline (BMO)
+	
+
+8.4.4 UI / Field Spec
+  
+
+Tên field
+	Bắt buộc
+	Mô tả chi tiết
+	Tiến trình xử lý BMO - Áp dụng cho phiếu có tạo phiếu BMO
+	  
+
+	N/A
+	Label: tiến trình xử lý BMO
+	  
+
+	N/A
+	Click để load lại thanh tiến trình mới nhất
+	  
+
+	N/A
+	Hiển thị số bước đã pass trên tổng số bước
+	  
+
+	N/A
+	* Tên bước
+* Người thực hiện: account + hành động
+* Thực tế: thời gian thực hiện dd/mm/yyyy hh:mm
+	Node tiến trình
+	N/A
+	  
+: pass
+  
+: từ chối
+  
+: chưa đến bước
+	  
+
+  
+
+  
+
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Thông tin bổ sung – Chi check trên phiếu có sinh bước SCS kiểm soát
+Mô tả chung 3 loại chuyển địa điểm
+Cụm Thông tin địa chỉ triển khai
+	 1
+	Tòa nhà
+	N/A
+	Hiển thị dữ liệu Tòa nhà khi tạo yêu cầu
+	 2
+	Đối tác
+	N/A
+	Hiển thị dữ liệu Đối tác khi tạo yêu cầu
+	3
+	Loại CDD
+	N/A
+	Hiển thị dữ liệu:
+* CDD trong cùng Building
+* CĐĐ sang Building khác – cùng đối tác
+* CĐĐ sang Building khác – khác đối tác.
+	
+
+8.5 FR05 — Tạo yêu cầu thanh lý DV chưa triển khai
+Description
+	Tạo YCTL cho HĐ/PL đã cấp số nhưng không triển khai
+	Actor
+	Người dùng hệ thống được phân quyền tạo yêu cầu
+	Trigger
+	Tạo yêu cầu >> Thanh lý DV chưa triển khai
+	Pre-Conditions
+	Người dùng đăng nhập thành công & được phân quyền.
+	Post-Conditions
+	Yêu cầu thanh lý được tạo thành công
+	 
+8.4.1 Business Rules
+BR ID
+	Mô tả
+	BR05-01
+	Tạo phiếu yêu cầu:
+* Chỉ sale/co-sale mới có quyền tạo yêu cầu cho HĐ mà mình quản lý (HĐ có nhiều sale/co-sale tất cả đều được quyền tạo)
+* Cho phép cấp Quản lý của CSM có thể hỗ trợ tạo giúp phiếu của nhân sự CSM (FTI-CSM MANAGER)
+* Riêng quyền Admin full quyền
+* Trường hợp nhập thông tin HĐ ngoài quyền của mình hệ thống hiện thông báo “Chỉ Sale/Co-sale của hợp đồng <Số HĐ> hoặc quản lý bộ phận dich vụ khách hàng của Sale/Co-sale đó mới có quyền tạo phiếu yêu cầu. Vui lòng kiểm tra lại!”
+* Cùng lúc chỉ được tạo 1 phiếu Thanh lý cho 1 loại DV Brandname hoặc MO-MT
+	BR05-02
+	Thanh lý áp dụng cho các loại dịch vụ có triển khai gồm:
+* IVoice: mã triển khai
+* IDC: thiết bị
+* Các dịch vụ SM (OncallCX, Autocall, SDWan, FPT HiGioCloud, Window365, Azure, Office 365, Hosting/Email): mã triển khai.
+* Leasedline: mã triển khai.
+* Mes: Hướng (MOMT), Đầu số - Cú pháp (Brandname).
+Các thông tin này gọi chung mà Mã dịch vụ.
+Thanh lý toàn phần HĐ: Tick chọn tất cả mã dịch vụ.
+Thanh lý 1 phần HĐ: không tick chọn tất cả mã dịch vụ.
+	BR05-03
+	Cho phép tạo yêu cầu thanh lý cho mã dịch vụ có tình trạng triển khai trên tool dịch vụ tương ứng:
+Tool dịch vụ
+	Trạng thái
+	Trạng thái ở tool dịch vụ sau khi Thanh lý
+	IVoice
+	Chưa thi công, Đề nghị hủy
+	Đề nghị hủy
+	Các dịch vụ SM
+	* DV khác Cloud partner: Mới, Phân công, Thất bại
+* Nhóm Cloud partner (Window365, Azure, Office 365): Mới, Thất bại
+	Thất bại
+	IDC
+	Mới, FTEL IDC từ chối, Xóa
+	Xóa
+	MES
+	* Brandname: Chờ duyệt khai báo, Thiếu hồ sơ, Đang đăng ký, Đã đăng ký.
+* MOMT: Chờ duyệt khai báo, Đang đăng ký
+	Thanh lý
+	Leasedline
+	Chưa phân công, Đang triển khai, Không thành công, Đóng tạm.
+	Không thành công
+	 
+	BR05-04
+	Quy tắc cập nhật trạng thái Phụ lục (PL) sang "Hủy" trên CM:
+* Thanh lý hết dịch vụ trong Phụ lục: Sau khi tất cả các Mã triển khai, Thiết bị, Đầu số hoặc Hướng dịch vụ thuộc Phụ lục được thanh lý hoàn tất, hệ thống CM sẽ tự động cập nhật trạng thái Phụ lục sang "Hủy"
+* Trường hợp Phụ lục / Hợp đồng tích hợp (chứa nhiều loại dịch vụ):
+   * Sau khi thanh lý hết một loại dịch vụ trong Phụ lục, hệ thống sẽ kiểm tra xem Phụ lục đó có còn dịch vụ nào khác đang ở trạng thái hoạt động hay không.
+   * Nếu vẫn còn dịch vụ khác hoạt động: Hệ thống chỉ hủy dịch vụ được chọn thanh lý và KHÔNG thực hiện hủy Phụ lục.
+   * Nếu không còn dịch vụ nào khác hoạt động: Hệ thống mới thực hiện chuyển trạng thái Phụ lục sang "Hủy".
+* Xử lý đối với Phụ lục rỗng (IDC/DV khác): Đối với các Phụ lục rỗng sinh ra từ nghiệp vụ nâng cấp/hạ cấp/chuyển dịch vụ trước đó, FCR kiểm tra danh sách chi tiết dịch vụ trong Hợp đồng và gọi API sang CM để cập nhật trạng thái Phụ lục rỗng sang "Hủy" khi tất cả dịch vụ trong Hợp đồng đã hoàn tất thanh lý.
+	BR05-05
+	Quy tắc cập nhật trạng thái Hợp đồng (HĐ) sang "Hủy" trên CM:
+* Khi tất cả Phụ lục thuộc Hợp đồng đã Hủy: Sau khi Phụ lục được cập nhật trạng thái, hệ thống tiếp tục kiểm tra Hợp đồng:
+   * Trường hợp không còn Phụ lục nào ở trạng thái hoạt động: Hệ thống CM tự động cập nhật trạng thái toàn bộ Hợp đồng thành "Hủy" và ghi nhận Nguyên nhân thanh lý bằng nguyên nhân mà Sale đã chọn khi tạo yêu cầu trên FCR
+   * Trường hợp vẫn còn Phụ lục khác hoạt động (Thanh lý 1 phần): Trạng thái Hợp đồng được giữ nguyên để khách hàng tiếp tục sử dụng các dịch vụ còn lại
+* Hợp đồng Đối tác: Cho phép tạo yêu cầu thanh lý đối với loại Hợp đồng Đối tác; hệ thống thực hiện kiểm tra và tự động Off Phụ lục / Off Hợp đồng trên CM tương tự như Hợp đồng thông thường.
+	 
+8.4.2 Business Workflow / Activity Flow
+  
+
+Luồng Thanh lý dịch vụ chưa hoàn tất
+8.4.3 Các bước thực hiện
+ID
+	Activity
+	Đầu ra
+	Actor
+	1
+	Sale tạo yêu cầu thanh lý cho mã dịch vụ có tình trạng triển khai khác Hoàn thành
+	Phiếu yêu cầu được tạo
+	Người tạo / Hệ thống FCR
+	2
+	BGĐ phê duyệt:
+* Duyệt: chuyển đến bước 4.
+* Từ chối: chuyển đến bước 3.
+	Kết quả phê duyệt
+	BGĐ
+	3
+	Người tạo chỉnh sửa thông tin phiếu yêu cầu:
+* Chỉnh sửa: gửi lại BGĐ phê duyệt (bước 2).
+* Kết thúc: kết thúc quy trình.
+	Phiếu gửi lại / kết thúc
+	Người tạo
+	4
+	FCR gửi yêu cầu off sang tool dịch vụ tương ứng (SM/IDC/LL/IVoice/MES)
+	Yêu cầu off gửi tool dịch vụ
+	Hệ thống FCR
+	5
+	Tool dịch vụ off phiếu triển khai tương ứng của mã dịch vụ (IVoice off theo mã triển khai, không off số điện thoại); chỉ trả kết quả off thành công về FCR
+	Phiếu triển khai được off
+	Tool dịch vụ
+	6
+	FCR nhận kết quả off thành công và gọi sang CM
+	Yêu cầu hủy gửi CM
+	Hệ thống FCR
+	7
+	CM hủy dịch vụ (nguyên nhân hủy = nguyên nhân thanh lý trên FCR)
+	Dịch vụ bị hủy trên CM
+	Hệ thống CM
+	8
+	CM kiểm tra PL còn dịch vụ khác đang hoạt động:
+* Có: giữ nguyên PL, chuyển đến bước 12.
+* Không: chuyển đến bước 9.
+	Kết quả kiểm tra PL
+	Hệ thống CM
+	9
+	CM chuyển trạng thái PL sang "Hủy"
+	PL bị hủy
+	Hệ thống CM
+	10
+	CM kiểm tra HĐ còn PL đang hoạt động:
+* Có: giữ nguyên trạng thái HĐ, chuyển đến bước 12.
+* Không: chuyển đến bước 11.
+	Kết quả kiểm tra HĐ
+	Hệ thống CM
+	11
+	CM chuyển trạng thái HĐ sang "Hủy"
+	HĐ bị hủy
+	Hệ thống CM
+	12
+	FCR cập nhật trạng thái phiếu và kết thúc quy trình
+	Phiếu kết thúc
+	Hệ thống FCR
+	8.4.4 UI / Field Spec
+  
+Màn hình tạo yêu cầu thanh lý - tab 1
+  
+Popup upload danh sách
+  
+
+
+
+Màn hình tạo yêu cầu thanh lý - tab 2
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Yêu cầu thanh lý
+	1
+	YÊU CẦU THANH LÝ
+	N/A
+	Tên trang
+	2
+	Dashboard / Yêu cầu thanh lý
+	N/A
+	Breadcrumb
+Click Dashboard back về trang Dashboard
+	3
+	Step phiếu yêu cầu
+	N/A
+	Gồm 2 bước: Thông tin hợp đồng, Thông tin yêu cầu
+Cho phép click để back về bước trước
+	Bước 1: Thông tin hợp đồng
+	4
+	Nhập số hợp đồng
+	Y
+	Khung nhập số hợp đồng
+Rule: tối đa 100 ký tự không phân biệt hoa thường, không bao gồm ký tự đặc biệt và khoảng trắng
+Trường hợp nhập sai số HĐ, hiện thông báo lỗi “Truy xuất thông tin hợp đồng <Số HĐ> từ hệ thống CM không thành công!”
+	5
+	Button Tìm
+	N/A
+	Click để tìm kiếm thông tin HĐ
+	6
+	Loại hợp đồng
+	N/A
+	Hiển thị loại hợp đồng sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	7
+	Nhóm dịch vụ
+	N/A
+	Hiển thị nhóm dịch vụ của hợp đồng sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	8
+	Ngày hợp đồng
+	N/A
+	Hiển thị ngày hợp đồng sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	9
+	Tên khách hàng
+	N/A
+	Hiển thị tên khách hàng sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	10
+	Địa chỉ
+	N/A
+	Hiển thị địa chỉ sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	11
+	Tình trạng hợp đồng
+	N/A
+	Hiển thị tình trạng hợp đồng sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	12
+	Mã số thuế
+	N/A
+	Hiển thị mã số thuế sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	13
+	CMND/CCCD/Hộ chiếu
+	N/A
+	Hiển thị CMND/CCCD/Hộ chiếu sau khi tìm hợp đồng
+Dữ liệu lấy từ CM
+	Danh sách dịch vụ
+	14
+	Button Thêm
+	N/A
+	Cho phép người tạo thêm chi tiết dịch vụ cho phiếu yêu cầu
+Click mở popup Chọn chi tiết dịch vụ
+	15
+	Button Xóa
+	N/A
+	Cho phép người tạo xóa chi tiết dịch vụ khỏi phiếu yêu cầu, khi chưa tick chọn dòng nào thì disable
+Hiện alert Xác nhận "Bạn có chắc muốn xóa các dịch vụ đã chọn". Click Đồng ý: xóa dòng đã chọn. Click Hủy: đóng popup
+	16
+	Button Upload danh sách
+	N/A
+	Click mở popup Upload danh sách dịch vụ 
+	17
+	Input tìm kiếm
+	N/A
+	Placeholder: Nhập mã dịch vụ, mã phụ lục
+Cho phép tìm kiếm tương đối theo mã dịch vụ, mã phụ lục
+	18
+	Checkbox, checkbox all
+	N/A
+	Chọn/bỏ chọn dòng/all tương ứng
+	19
+	Grid Danh sách dịch vụ
+	N/A
+	Cột hiển thị theo loại dịch vụ của hợp đồng (xem bảng "Cột Danh sách dịch vụ theo loại dịch vụ" bên dưới)
+Bổ sung cột Tình trạng triển khai cho tất cả loại dịch vụ
+	20
+	Tình trạng triển khai
+	N/A
+	Hiển thị tình trạng triển khai của mã dịch vụ
+Dữ liệu lấy từ tool dịch vụ tương ứng: TB – IDC, MTK – LL, Đầu số – IVoice, Brandname – MES, PL – SM
+	21
+	Pagination
+	N/A
+	Cho phép chuyển trang và điều chỉnh số dòng dữ liệu hiển thị trên mỗi trang, mặc định 10 dòng mỗi page
+	22
+	Button Tiếp tục
+	N/A
+	Click để điều hướng đến step tiếp theo
+Disable khi không có thông tin danh sách dịch vụ
+	Popup Chọn chi tiết dịch vụ
+	23
+	Input tìm kiếm
+	N/A
+	Cho phép tìm kiếm tương đối theo mã dịch vụ, mã phụ lục
+	24
+	Checkbox, checkbox all
+	N/A
+	Chọn/bỏ chọn dòng/all tương ứng
+Mã dịch vụ đang tồn tại trong phiếu CPN chưa đến ngày thực hiện: không cho chọn, theo quy tắc chuyển pháp nhân (BR02-03)
+	25
+	Grid chi tiết dịch vụ
+	N/A
+	Cột theo loại dịch vụ như Grid Danh sách dịch vụ, có cột Tình trạng triển khai
+	26
+	Pagination
+	N/A
+	Cho phép chuyển trang và điều chỉnh số dòng dữ liệu hiển thị trên mỗi trang
+	27
+	Button Hủy
+	N/A
+	Click đóng popup
+	28
+	Button Xác nhận
+	N/A
+	Click xác nhận chi tiết dịch vụ vào grid Danh sách dịch vụ
+Chưa tick chọn dòng nào: disable button
+	Popup Upload danh sách dịch vụ
+	29
+	File Upload
+	N/A
+	Cho phép import file. Dòng thông tin nào không đúng: tô đỏ
+	30
+	Button Tải file mẫu
+	N/A
+	Cho phép tải về máy file mẫu (tương tự chức năng Thanh lý của từng tool dịch vụ)
+	31
+	Grid kết quả import
+	N/A
+	Cột theo loại dịch vụ như Grid Danh sách dịch vụ
+  
+
+  
+Icon show thông báo lỗi khi import:
+* Dữ liệu import không tồn tại: “Dữ liệu không tồn tại trong danh sách <loại mã dịch vụ>!”
+* Trạng thái Mã dịch vụ không được tạo yêu cầu “Để thực hiện thanh lý, trạng thái <loại mã dịch vụ> phải là <trạng thái được thanh lý tương ứng với mã DV>”
+	32
+	Button Hủy
+	N/A
+	Click đóng popup, không ghi nhận 
+	33
+	Button Xác nhận
+	N/A
+	Click xác nhận chi tiết dịch vụ vào grid Danh sách dịch vụ
+Có dòng thông tin chưa đúng: disable button
+	Bước 2: Thông tin yêu cầu
+	34
+	Loại yêu cầu
+	N/A
+	Chọn tất cả mã dịch vụ trong HĐ: hiển thị "Thanh lý toàn bộ hợp đồng"
+Không chọn hết: hiển thị "Thanh lý một phần hợp đồng"
+Disable không cho phép chỉnh sửa
+	35
+	Ngày đề nghị thanh lý
+	Y
+	Type: date picker
+Format: dd/mm/yyyy
+Cho phép chọn ngày backdate, hiện tại, tương lai
+	36
+	Nhóm nguyên nhân
+	Y
+	Type: dropdown, chỉ chọn 1
+Danh mục nhóm nguyên nhân thanh lý trên FCR (BR01-01)
+	37
+	Nguyên nhân chi tiết
+	Y
+	Type: dropdown, chỉ chọn 1
+Hiển thị danh sách nguyên nhân chi tiết theo Nhóm nguyên nhân đã chọn
+	38
+	Nguyên nhân khác
+	N
+	Textbox, cho phép nhập tối đa 200 ký tự, hiển thị khi chọn nguyên nhân chi tiết = “Khác"
+	39
+	Cước phí chưa VAT
+	N
+	Cước phí thanh lý yêu cầu chưa VAT
+Đơn vị: VNĐ
+Giá trị mặc định: rỗng
+Không cho nhập số âm và số 0
+Type: number
+	40
+	Hồ sơ đính kèm
+	Y
+	Cho phép tải lên tối đa 5 tệp, 1 file tối đa 5MB
+Chấp nhận định dạng file: .doc, .docx, .xls, .xlsx, .ppt, .pptx, .pdf, .txt, .jpg, .jpeg, .png, .msg, .eml, .zip, .rar
+	41
+	Phụ lục
+	N
+	Upload phụ lục cho yêu cầu thanh lý
+	42
+	Người nhận thông báo
+	N
+	Input field, cho phép tìm kiếm tương đối
+Dropdown danh sách email FTMS
+	43
+	Ghi chú
+	N
+	Textbox, cho phép nhập tối đa 200 ký tự
+	44
+	Button Quay lại
+	N/A
+	Cho phép trở về bước trước
+	45
+	Button Tạo
+	N/A
+	Click tạo yêu cầu
+Hệ thống điều hướng đến màn hình Xem chi tiết phiếu yêu cầu
+	 
+Cột Danh sách dịch vụ theo loại dịch vụ
+STT
+	Loại dịch vụ
+	Mã dịch vụ
+	Tool lấy tình trạng triển khai
+	Các cột Danh sách dịch vụ
+	1
+	Leasedline
+	Mã triển khai (MTK)
+	LL
+	STT, Mã triển khai, Mã phụ lục, Địa chỉ triển khai, Trạng thái, Người liên hệ, Số điện thoại, Tình trạng triển khai
+	2
+	IDC
+	Thiết bị (TB)
+	IDC
+	STT, Tên dịch vụ, Mã phụ lục, Loại dịch vụ, Vị trí Rack, Vị trí U, Trạng thái, Tình trạng triển khai
+	3
+	IVoice (Điện thoại cố định, 1800, 1900)
+	Đầu số (off theo Mã triển khai)
+	IVoice
+	STT, Số điện thoại, Mã triển khai, Phụ lục, Nhóm dịch vụ, Loại dịch vụ, Thông tin book số, Thông tin triển khai, Trạng thái, Khóa đầu số, Tình trạng triển khai
+	4
+	MES – Brandname
+	Brandname
+	MES
+	STT, Brandname, Partner, Mã phụ lục, Lĩnh vực kinh doanh, Nhóm khách hàng, Tình trạng
+Expand hướng dịch vụ: STT, Nhà mạng, NCC, Hướng DV, Tình trạng triển khai
+	5
+	MES – MO-MT
+	Đầu số
+	MES
+	STT, Đầu số, Cú pháp, Mã phụ lục, Lĩnh vực kinh doanh, Nhóm khách hàng, Tình trạng triển khai
+	6
+	SM
+	Phụ lục (PL)
+	SM
+	STT, Mã phụ lục, Nhóm dịch vụ, Loại dịch vụ, Trạng thái, Tình trạng triển khai
+	 
+8.5 FR05 — Xem chi tiết phiếu yêu cầu Thanh lý DV chưa triển khai
+Description
+	Xem chi tiết và xử lý phiếu YCTL HĐ/PL đã cấp số nhưng không triển khai theo quy trình đã cài đặt.
+	Actor
+	Người thực hiện yêu cầu (người dùng có role được phân công ở từng bước)
+	Trigger
+	Danh sách yêu cầu >> Chi tiết phiếu yêu cầu thanh lý
+	Pre-Conditions
+	Yêu cầu được phân công đến người dùng; quy trình được khai báo ở tính năng Cài đặt quy trình
+	Post-Conditions
+	Yêu cầu được phê duyệt/thực hiện
+	 
+8.5.1 Business Rules (N/A)
+8.5.2 Business Workflow / Activity Flow (N/A)
+8.5.3 Các bước thực hiện (N/A)
+8.5.4 UI / Field Spec
+  
+Màn hình xem chi tiết phiêu yêu cầu thanh lý DV chưa triển khai
+
+
+STT
+	Tên trường
+	Bắt buộc? (Y/N)
+	Mô tả
+	Header
+	1
+	YÊU CẦU THANH LÝ #<Mã yêu cầu>
+	N/A
+	Loại yêu cầu + Mã yêu cầu
+	2
+	Breadcrumb
+	N/A
+	Click Dashboard back về Dashboard
+Click Danh sách yêu cầu back về danh sách
+	3
+	Button Hủy
+	N/A
+	Cho phép người tạo hủy phiếu khi phiếu đang chờ BGĐ phê duyệt
+	4
+	Popup Hủy yêu cầu
+	Y
+	Textarea: cho phép nhập tối đa 150 ký tự, không chứa ký tự đặc biệt
+Button Hủy: đóng popup
+Button Xác nhận: cập nhật kết quả Hủy phiếu và ghi nhận ở log Lịch sử hoạt động
+	5
+	Button Chỉnh sửa
+	N/A
+	Cho phép người tạo chỉnh sửa phiếu khi phiếu đang chờ BGĐ phê duyệt hoặc bị BGĐ từ chối
+Click Chỉnh sửa: hệ thống mở và load lại thông tin phiếu ở màn hình tạo yêu cầu
+	6
+	Button Kết thúc
+	N/A
+	Người tạo không chỉnh sửa phiếu khi bị BGĐ từ chối thì có thể kết thúc phiếu yêu cầu
+Chỉ người tạo phiếu thao tác
+	8
+	Button Phê duyệt
+	N/A
+	Hiển thị ở bước BGĐ phê duyệt, cho phép BGĐ phê duyệt
+	10
+	Popup Phê duyệt yêu cầu
+	Y
+	Textarea: cho phép nhập tối đa 150 ký tự, không chứa ký tự đặc biệt
+Đính kèm file: tối đa 5 tệp, mỗi tệp 5MB
+Button Hủy: đóng popup
+Button Xác nhận: cập nhật kết quả Phê duyệt phiếu, ghi nhận ở log Lịch sử hoạt động; hệ thống gửi yêu cầu off sang tool dịch vụ
+	11
+	Button Từ chối
+	N/A
+	Hiển thị ở bước BGĐ phê duyệt, cho phép BGĐ từ chối
+	12
+	Popup Từ chối yêu cầu
+	Y
+	Textarea: cho phép nhập tối đa 150 ký tự, không chứa ký tự đặc biệt
+Button Hủy: đóng popup
+Button Xác nhận: cập nhật kết quả Từ chối phiếu, ghi nhận ở log Lịch sử hoạt động; phiếu trả về người tạo
+	Thông tin hợp đồng (dữ liệu lấy từ CM)
+	13
+	Số hợp đồng
+	N/A
+	Hiển thị số hợp đồng được tạo yêu cầu
+	14
+	Ngày hợp đồng
+	N/A
+	Hiển thị ngày hợp đồng
+	15
+	Tên khách hàng
+	N/A
+	Hiển thị tên khách hàng
+	16
+	Loại hợp đồng
+	N/A
+	Hiển thị loại hợp đồng
+	17
+	Nhóm dịch vụ
+	N/A
+	Hiển thị nhóm dịch vụ
+	18
+	Địa chỉ
+	N/A
+	Hiển thị địa chỉ
+	19
+	Tình trạng hợp đồng
+	N/A
+	Hiển thị tình trạng hợp đồng
+	20
+	Mã số thuế
+	N/A
+	Hiển thị mã số thuế
+	21
+	CMND/CCCD/Hộ chiếu
+	N/A
+	Hiển thị CMND/CCCD/Hộ chiếu của khách hàng
+	22
+	Grid Danh sách dịch vụ
+	N/A
+	Dữ liệu theo bảng Danh sách dịch vụ khi tạo yêu cầu; cột theo loại dịch vụ
+	23
+	Pagination
+	N/A
+	Cho phép chuyển trang và điều chỉnh số dòng dữ liệu hiển thị trên mỗi trang, mặc định 10 dòng mỗi page
+	Thông tin yêu cầu
+	24
+	Loại yêu cầu
+	N/A
+	Hiển thị loại yêu cầu, dữ liệu lấy theo Loại yêu cầu khi tạo yêu cầu
+	25
+	Ngày đề nghị thanh lý
+	N/A
+	Hiển thị Ngày đề nghị thanh lý, dữ liệu lấy theo khi tạo yêu cầu
+	26
+	Nhóm nguyên nhân
+	N/A
+	Hiển thị Nhóm nguyên nhân, dữ liệu lấy theo khi tạo yêu cầu (giá trị tại thời điểm phát sinh)
+	27
+	Nguyên nhân chi tiết
+	N/A
+	Hiển thị Nguyên nhân chi tiết / Nguyên nhân khác, dữ liệu lấy theo khi tạo yêu cầu
+	28
+	Cước phí chưa VAT
+	N/A
+	Hiển thị Cước phí chưa VAT, dữ liệu lấy theo khi tạo yêu cầu
+	29
+	Hồ sơ đính kèm
+	N/A
+	Hiển thị file đính kèm khi tạo yêu cầu và ở bước Phê duyệt (kèm tên bước), click cho phép tải file về
+	30
+	Phụ lục
+	N/A
+	Hiển thị file phụ lục đã upload, click cho phép tải file về; không có hiện N/A
+	31
+	Người nhận thông báo
+	N/A
+	Hiển thị email Người nhận thông báo, không có hiện N/A
+	32
+	Ghi chú
+	N/A
+	Hiển thị Ghi chú, không có hiện N/A
+	Tiến trình xử lý
+	33
+	Tiến trình xử lý
+	N/A
+	Quy trình chỉ có 1 bước: BGĐ phê duyệt
+Hiển thị số bước đã thực hiện / tổng số bước (không tính bước tạo mới và kết thúc): 0/1 hoặc 1/1
+Các node: Tạo mới → BGĐ phê duyệt → Kết thúc
+	34
+	Người thực hiện
+	N/A
+	<Tên người thực hiện> - <Phòng ban> - <Tên bước>
+Hiển thị account người duyệt
+	35
+	SLA
+	N/A
+	Hiển thị thời hạn SLA của bước BGĐ phê duyệt theo Cài đặt quy trình
+	Lịch sử hoạt động
+	36
+	Người thực hiện
+	N/A
+	Tên người thực hiện / Hệ thống
+	37
+	Action
+	N/A
+	Ghi lại lịch sử: Đã tạo yêu cầu, Phê duyệt, Từ chối, Chỉnh sửa, Hủy, Kết thúc
+	38
+	Thời gian
+	N/A
+	Thời gian ghi nhận lịch sử, định dạng dd/MM/yyyy hh:mm
+	Trao đổi
+	39
+	Gửi đến
+	N
+	Cho phép nhập địa chỉ email hợp lệ có trong danh sách email FTMS
+Gửi thông báo có thông tin trao đổi đến account được nhập
+	40
+	Nhập thông tin trao đổi
+	N
+	Textbox, cho phép nhập tối đa 200 ký tự
+	41
+	Đính kèm file
+	N/A
+	Cho phép upload tối đa 1 file / 1 lần gửi. . Nếu chọn/tải file mới thì file mới sẽ thay thế cho file đã chọn trước đó. Tối đa 5 MB / file.
+Hệ thống hỗ trợ các định dạng file thuộc danh mục: .doc, .docx, .xls, .xlsx, .ppt, .pptx, .pdf, .txt, .jpg, .jpeg, .png, .msg, .eml, .zip, .rar.
+	42
+	Button Gửi
+	N/A
+	Nút Gửi trao đổi chỉ sáng (enable) khi người dùng có nhập nội dung văn bản
+	8.6 FR06 — Xem chi tiết phiếu yêu cầu - chung
+Description
+	Chức năng bổ sung:
+* Điều chỉnh thông tin trong các phiếu yêu cầu
+* Thêm trường upload phụ lục cho role CSM upload sau khi phiếu đã hoàn tất.
+	Actor
+	Người thực hiện yêu cầu có quyền xem
+	Trigger
+	Danh sách yêu cầu >> Chi tiết phiếu yêu cầu
+	Pre-Conditions
+	Yêu cầu được phân công đến người dùng; quy trình được khai báo ở tính năng Cài đặt quy trình
+	Post-Conditions
+	Yêu cầu được phê duyệt/thực hiện
+	 
+8.6.1 Business Rules
+BR ID
+	Mô tả
+	Quy tắc chung - Áp dụng với tất cả loại phiếu và tất cả dịch vụ
+	BR06-01
+	Hiển thị account duyệt phiếu thay vì full name trên tiến trình xử lý và log Lịch sử hoạt động.
+	BR06-02
+	Ngày đề nghị chuyển pháp nhân đối với role QA: không được phép chỉnh sửa đối với phiếu yêu cầu CPN sau khi đã pass bước DEM (không hiện icon chỉnh sửa)
+	Thanh lý - tất cả dịch vụ
+	BR06-03
+	Cập nhật log ghi nhận người upload file “Account đã thực hiện CSM upload file. Thời hạn thực hiện là dd/mm/yyyy hh:mm.
+	BR06-04
+	Áp dụng tất cả dịch vụ
+	 
+8.6.2 Business Workflow / Activity Flow
+8.6.3 Các bước thực hiện
+8.6.4 UI / Field Spec
+  
+
+Popup CSM upload tài liệu
+ 
+Tên field
+	Bắt buộc
+	Mô tả chi tiết
+	Popup Upload tài liệu
+	Button Upload tài liệu
+	N/A
+	Chỉ hiển thị ở quy trình thanh lý có bước CSM.
+Hiển thị sau khi pass bước CSM, phiếu ở trạng thái Hoàn thành vẫn hiện button.
+CSM chỉ được upload 1 lần duy nhất, sau đó sẽ không hiện button nữa.
+	Loại tài liệu
+	N/A
+	Mỗi trường mặc định hiển thị 1 loại tài liệu:
+* Biên bản thanh lý
+* Công văn đơn phương
+* Biên bản chuyển nhượng
+* Tài liệu khác
+	Hồ sơ đính kèm
+	N/A
+	Mỗi trường cho phép tải lên hồ sơ đính kèm, tối đa 5 file, mỗi file tối đa 5mb, định dạng .doc, .docx, .pdf, .txt, .xls, .xlsx, .ppt, .pptx, .jpg, .jpeg, .png, .msg, .eml, .zip, .rar
+Bắt buộc tải lên ít nhất 1 trường hồ sơ đính kèm.
+	Button Xác nhận
+	N/A
+	Click để hoàn tất upload file
+	Button Hủy
+	N/A
+	Đóng popup, không ghi nhận thao tác
+	   
+ 
+Tên field
+	Bắt buộc
+	Mô tả chi tiết
+	Các trường thông tin bổ sung
+	Phiếu YC thanh lý - Áp dụng tất cả dịch vụ
+	Cụm hồ sơ đính kèm
+	N/A
+	* Hiển thị các hồ sơ đính kèm khi tạo phiếu với icon   
+   * Tên bước (ví dụ CMS, AF công nợ...): hiển thị các hồ sơ đính kèm ở bước CSM phê duyệt với icon   
+   * CSM: hiển thị loại tài liệu kèm file đính kèm khi CSM upload tài liệu ở popup “Upload tài liệu". 
+	Tất cả phiếu của tất cả quy trình và dịch vụ
+	Lịch sử hoạt động
+	N/A
+	Hiển thị account của người thực hiện (thay cho tên)
+	
+
+8.7 FR07 — Danh sách yêu cầu
+Description
+	Chức năng bổ sung:
+      * Filter cho phép tìm kiếm phiếu thanh lý CSM upload tài liệu.
+      * Bổ sung filter Thanh lý DV chưa triển khai
+	Actor
+	Người thực hiện yêu cầu có quyền xem
+	Trigger
+	Danh sách yêu cầu
+	Pre-Conditions
+	Người dùng xem được danh sách yêu cầu
+	Post-Conditions
+	Yêu cầu được tạo thành công
+	 
+8.6.1 Business Rules (N/A) 
+8.6.2 Business Workflow / Activity Flow (N/A)
+8.6.3 Các bước thực hiện (N/A)
+8.6.4 UI / Field Spec
+Tên field
+	Bắt buộc
+	Mô tả chi tiết
+	  
+
+Bộ lọc
+  
+Grid danh sách đã thực hiện
+  
+
+Grid danh sách đã tạo
+Các trường thông tin bổ sung
+Danh sách yêu cầu
+	Tab Đã tạo, Đã thực hiện
+	Bộ lọc
+	N/A
+	      * Upload tài liệu CSM:
+      * Select box: cho phép chọn 1, mặc định rỗng
+      * Đã upload: các phiếu đã upload tài liệu
+      * Chưa upload: các phiếu chưa upload tài liệu
+      * SCS kiểm soát:
+      * Select box: cho phép chọn 1, mặc định rỗng:
+      * Có: phiếu có bước SCS kiểm soát
+      * Không: phiếu không có bước SCS kiểm soát
+	Grid Danh sách yêu cầu
+	N/A
+	Bổ sung cột Upload tài liệu
+	Bộ Filter
+	Loại yêu cầu
+	N/A
+	Bổ sung option Thanh lý DV chưa TK
+	
+
+8.8 FR08 — Template Email
+ Email nhắc nhở CSM upload tài liệu
+To
+	<Theo mô tả TO các mẫu email sử dụng>
+	Cc
+	<Theo mô tả CC các mẫu email sử dụng>
+	Bcc
+	 
+	Subject
+	<Như nội dung mô tả bên dưới mục số 11>
+	Content
+	Dear anh/chị,
+<Nội dung như mô tả Header bên dưới>
+THÔNG TIN YÊU CẦU
+Hợp đồng
+	Hiển thị số HĐ
+	Loại dịch vụ
+	Hiển thị Loại dịch vụ
+	Từ ngày
+	Hiển thị Từ ngày của hóa đơn
+	Đến ngày
+	Hiển thị đến ngày của hóa đơn
+	THÔNG TIN KHÁCH HÀNG
+Tên khách hàng
+	Hiển thị tên KH
+	Địa chỉ xuất hoá đơn
+	Hiển thị Địa chỉ trong phiếu YC
+	MST/CMNN/CCCD/Hộ chiếu
+	Mặc định hiển thị MST, không có MST thì hiển thị CCCD/Hộ chiếu
+	<Nội dung như mô tả Footer bên dưới>
+	 
+
+
+ 
+STT
+	TO
+	SUBJECT
+	CONTENT
+	TRƯỜNG HỢP SỬ DỤNG
+	1
+	CSM
+	Yêu cầu <Mã yêu cầu> cho hợp đồng <Số hợp đồng> cần đính kèm tài liệu
+	Header:
+Yêu cầu <Mã yêu cầu> đã hoàn tất vào lúc <Thời hạn dd/mm/yyyy – hh:mm>
+Footer:
+Anh/Chị vui lòng bổ sung tài liệu BBTL, công căn, BB chuyển nhượng 3 bên.
+Nhấn vào <Link> để xem chi tiết yêu cầu.
+	CSM upload trên phiếu Thanh lý
+	
+
+      9. NON-FUNCTIONAL REQUIREMENTS (N/A)
+
+
+ 
+      10. ARTIFACT REFERENCE
+Loại Artifact
+	Mô tả
+	Link/Vị trí lưu trữ
+	Wireframe/UI mockup
+	Ảnh màn hình và bảng field spec của từng chức năng
+	 https://www.figma.com/design/Si3UxurpV0EyCoU2EMTB44/FCR?node-id=0-1&p=f&t=uiC0GE0lglk7Q9y3-0
+	 
+
+
+ 
+PART C — GOVERNANCE
+      11. DEFINITION OF DONE – TIÊU CHÍ NGHIỆM THU
+#
+	Tiêu chí
+	Owner
+	Kết quả
+	 
+	SIT: QC confirm không còn bug Critical/High, pass ≥ 80%. Tất cả User Stories (Must+Should) pass AC trên môi trường Staging => QC sign-off.
+	Dev + QC
+	☐
+	 
+	PenTest: Không còn bug Critical/High => CSOC sign-off.
+	Dev + CSOC
+	☐
+	 
+	Tất cả User Stories (Must+Should) pass AC trên môi trường Staging => PO/UAT sign-off; PO xác nhận DoD hoàn tất tại Staging trước khi lên Production.
+	BA + PO
+	☐
+	
+
+ 
+PART D — TEMPLATE META & USAGE
+      12. HƯỚNG DẪN SỬ DỤNG TEMPLATE
+      * Các team dự án được phép customize (thêm/bớt cột, đổi tên cột/mục) miễn đảm bảo truy vết được: yêu cầu → chức năng.
+      * Khi nội dung KHÔNG áp dụng cho dự án, phải ghi rõ "N/A" và nêu ngắn gọn lý do.
+      * Sau khi "Make a copy" template cho dự án, BA/PIC xóa: (a) các đoạn hướng dẫn màu cam, (b) toàn bộ nội dung Ví dụ minh họa, (c) mục Part D này.
+      * Quy ước ID AC (mục 7.0) là bắt buộc và áp dụng thống nhất toàn ISC — không tự đặt format khác.
+      * PRD là artifact bắt buộc trước Gate Design theo ISC SDLC Process v1.7 — không bỏ qua bước phê duyệt PO ở mục 12.
+
+
+
+
+|

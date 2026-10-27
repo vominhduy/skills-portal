@@ -24,3 +24,9 @@ ENV/
 .DS_Store
 Thumbs.db
 Desktop.ini
+node_modules/
+
+# AI Studio internal artifacts & token caches
+.aistudio/
+data/token_cache.*
+data/*.bin

@@ -22,6 +22,8 @@ def main() -> None:
     parser.add_argument("--from-addr", default="", help="Lọc theo người gửi")
     parser.add_argument("--slug", default="outlook_digest", help="Prefix tên file output")
     parser.add_argument("--user-request", default="", help="Yêu cầu tổng hợp của user")
+    parser.add_argument("--unread-only", action="store_true", help="Chỉ lấy các email chưa đọc")
+    parser.add_argument("--direct-only", action="store_true", help="Chỉ lấy các email gửi riêng/trực tiếp cho tôi")
     args = parser.parse_args()
 
     sd = scripts_dir()
@@ -38,6 +40,10 @@ def main() -> None:
         "--slug",
         args.slug,
     ]
+    if args.unread_only:
+        cmd.append("--unread-only")
+    if args.direct_only:
+        cmd.append("--direct-only")
     if args.query:
         cmd.extend(["--query", args.query])
     if args.subject:

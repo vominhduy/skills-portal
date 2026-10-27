@@ -52,6 +52,10 @@ SKILL_ENTRYPOINTS = {
     "vn-stock-advisor": {
         "script": "scripts/finbox_client.py",
         "desc": "Truy vấn tín hiệu và dữ liệu chứng khoán Finbox"
+    },
+    "sprint-planning": {
+        "script": "scripts/build_sprint3.py",
+        "desc": "Tạo Sprint Backlog FTI-SAL v3.1 Sprint 3, validate cache và xuất bộ file Excel & Markdown"
     }
 }
 

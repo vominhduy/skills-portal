@@ -148,6 +148,8 @@ def main() -> None:
     parser.add_argument("--slug", default="outlook_digest", help="Prefix tên file output")
     parser.add_argument("--user-request", default="", help="Yêu cầu tổng hợp của user")
     parser.add_argument("--input-file", default="", help="Đường dẫn file email (.eml / .txt) cục bộ")
+    parser.add_argument("--unread-only", action="store_true", help="Chỉ lấy các email chưa đọc (isRead = false)")
+    parser.add_argument("--direct-only", action="store_true", help="Chỉ lấy các email gửi trực tiếp/riêng cho tôi (trong To)")
     args = parser.parse_args()
 
     out = os.path.abspath(args.output_dir)
@@ -155,7 +157,9 @@ def main() -> None:
 
     query = build_query(args)
     print(f"\n{'=' * 60}\n▶ Outlook Email Fetch\n{'=' * 60}")
-    print(f"  Query:       {query or '(all recent)'}")
+    print(f"  Query:       {query or ('(unread direct recent)' if (args.unread_only and args.direct_only) else '(unread recent)' if args.unread_only else '(all recent)')}")
+    print(f"  Unread only: {args.unread_only}")
+    print(f"  Direct only: {args.direct_only}")
     print(f"  Max results: {args.max_results}")
     print(f"  Output dir:  {out}")
 
@@ -176,7 +180,7 @@ def main() -> None:
     # 3. Nếu chưa có email từ file, kết nối qua máy chủ Outlook (Graph API / IMAP)
     if not messages:
         try:
-            messages = fetch_messages(query, args.max_results)
+            messages = fetch_messages(query, args.max_results, unread_only=args.unread_only, direct_only=args.direct_only)
         except SystemExit as se:
             # Nếu fetch thất bại vì mạng bị chặn, kiểm tra lại xem có file nào khác không
             if not messages:
@@ -221,6 +225,7 @@ def main() -> None:
                 "from": msg.get("from"),
                 "to": msg.get("to"),
                 "cc": msg.get("cc", ""),
+                "direct_type": msg.get("direct_type", ""),
                 "subject": processed["subject_safe"],
                 "snippet": processed["snippet_safe"],
                 "body": processed["body_safe"],

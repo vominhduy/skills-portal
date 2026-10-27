@@ -266,14 +266,19 @@ def normalize_xlsx_bytes(orig_bytes: bytes) -> bytes:
 
 
 def normalize_xlsx_file(file_path: str) -> bool:
-    """Chuẩn hóa trực tiếp file .xlsx trên đĩa."""
+    """Chuẩn hóa trực tiếp file .xlsx trên đĩa (giữ nguyên mtime gốc của file)."""
     if not os.path.exists(file_path) or not os.path.isfile(file_path):
         return False
+    st = os.stat(file_path)
     with open(file_path, "rb") as f:
         orig = f.read()
     norm = normalize_xlsx_bytes(orig)
     with open(file_path, "wb") as f:
         f.write(norm)
+    try:
+        os.utime(file_path, (st.st_atime, st.st_mtime))
+    except Exception:
+        pass
     return True
 
 
